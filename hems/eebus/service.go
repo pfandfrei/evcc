@@ -3,10 +3,8 @@ package eebus
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship"
 	"github.com/gorilla/websocket"
@@ -71,23 +69,7 @@ func baseURIFromDNS(zc *zeroconf.ServiceEntry) string {
 }
 
 // Connector is the connector used for establishing new websocket connections
-var Connector = defaultWebsocketConnector
-
-func defaultWebsocketConnector(uri string) (*websocket.Conn, error) {
-	dialer := &websocket.Dialer{
-		Proxy:            http.ProxyFromEnvironment,
-		HandshakeTimeout: 5 * time.Second,
-		// TLSClientConfig:  &tls.Config{
-		// 	RootCAs:      caCertPool,
-		// 	Certificates: []tls.Certificate{tlsClientCert},
-		// }
-	}
-
-	conn, resp, err := dialer.Dial(uri, http.Header{})
-	fmt.Println(resp)
-
-	return conn, err
-}
+var Connector func(uri string) (*websocket.Conn, error)
 
 // Connect connects to the service endpoint and performs handshake
 func (ss *Service) Connect() error {
@@ -106,5 +88,5 @@ func (ss *Service) Connect() error {
 
 // Close closes the service connection
 func (ss *Service) Close() error {
-	return ss.Conn.Close()
+	return ss.Conn.Close(true)
 }

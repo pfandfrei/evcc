@@ -18,7 +18,7 @@ const (
 	SubProtocol = "ship"
 )
 
-type ProtocolHandshake struct {
+type MessageProtocolHandshake struct {
 	HandshakeType string   `json:"handshakeType"`
 	Version       Version  `json:"version"`
 	Formats       []string `json:"formats"`
@@ -37,6 +37,40 @@ type CmiProtocolHandshakeError struct {
 	Error int `json:"error"`
 }
 
+type CmiHandshakeMsg struct {
+	MessageProtocolHandshake []MessageProtocolHandshake `json:"messageProtocolHandshake"`
+}
+
+type CmiConnectionPinState struct {
+	ConnectionPinState []ConnectionPinState `json:"connectionPinState"`
+}
+
+type ConnectionPinState struct {
+	PinState string `json:"pinState"` // required, optional, pinOk, none
+}
+
+type CmiAccessMethodsRequest struct {
+	AccessMethodsRequest []AccessMethodsRequest `json:"accessMethodsRequest"`
+}
+
+type AccessMethodsRequest struct {
+	ID  string `json:"dnsSd_mDns,omitempty"`
+	DNS struct {
+		URI string `json:"uri"`
+	} `json:"dns,omitempty"`
+}
+
+type CmiAccessMethods struct {
+	AccessMethods []AccessMethods `json:"accessMethods"`
+}
+
+type AccessMethods struct {
+	ID  string `json:"dnsSd_mDns,omitempty"`
+	DNS struct {
+		URI string `json:"uri"`
+	} `json:"dns,omitempty"`
+}
+
 func (c *Connection) handshakeReceiveSelect() (CmiHandshakeMsg, error) {
 	var resp CmiHandshakeMsg
 	typ, err := c.readJSON(&resp)
@@ -46,11 +80,11 @@ func (c *Connection) handshakeReceiveSelect() (CmiHandshakeMsg, error) {
 	}
 
 	if err == nil {
-		if len(resp.ProtocolHandshake) != 1 {
+		if len(resp.MessageProtocolHandshake) != 1 {
 			return resp, errors.New("handshake: invalid length")
 		}
 
-		handshake := resp.ProtocolHandshake[0]
+		handshake := resp.MessageProtocolHandshake[0]
 
 		if handshake.HandshakeType != ProtocolHandshakeTypeSelect ||
 			len(handshake.Formats) != 1 || handshake.Formats[0] != ProtocolHandshakeFormatJSON {
@@ -69,7 +103,7 @@ func (c *Connection) handshakeReceiveSelect() (CmiHandshakeMsg, error) {
 
 func (c *Connection) clientProtocolHandshake() error {
 	req := CmiHandshakeMsg{
-		ProtocolHandshake: []ProtocolHandshake{
+		MessageProtocolHandshake: []MessageProtocolHandshake{
 			{
 				HandshakeType: ProtocolHandshakeTypeAnnounceMax,
 				Version:       Version{Major: 1, Minor: 0},
@@ -102,11 +136,11 @@ func (c *Connection) serverProtocolHandshake() error {
 	}
 
 	if err == nil {
-		if len(req.ProtocolHandshake) != 1 {
+		if len(req.MessageProtocolHandshake) != 1 {
 			return errors.New("handshake: invalid length")
 		}
 
-		handshake := req.ProtocolHandshake[0]
+		handshake := req.MessageProtocolHandshake[0]
 
 		if handshake.HandshakeType != ProtocolHandshakeTypeAnnounceMax ||
 			len(handshake.Formats) != 1 || handshake.Formats[0] != ProtocolHandshakeFormatJSON {
@@ -118,7 +152,7 @@ func (c *Connection) serverProtocolHandshake() error {
 			err = errors.New("handshake: invalid response")
 		} else {
 			// send selection to client
-			req.ProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
+			req.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
 			err = c.writeJSON(CmiTypeControl, req)
 		}
 	}

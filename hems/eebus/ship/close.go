@@ -3,7 +3,6 @@ package ship
 import (
 	"errors"
 	"fmt"
-	"log"
 	"time"
 )
 
@@ -30,67 +29,61 @@ type ConnectionClose struct {
 	Reason  string `json:"reason,omitempty"`
 }
 
-func (c *Connection) close() error {
-	// always send READY
-	errC := make(chan error)
-	go func(errC chan<- error) {
-		msg := CmiCloseMsg{
-			ConnectionClose: []ConnectionClose{
-				{
-					Phase:   CmiClosePhaseAnnounce,
-					MaxTime: int(CmiCloseTimeout / time.Millisecond),
-				},
+func (c *Connection) closePassive() error {
+	msg := CmiCloseMsg{
+		ConnectionClose: []ConnectionClose{
+			{
+				Phase: CmiClosePhaseConfirm,
 			},
-		}
+		},
+	}
 
-		if err := c.writeJSON(CmiTypeEnd, msg); err != nil {
-			errC <- fmt.Errorf("close send failed: %w", err)
-		}
-	}(errC)
+	return c.writeJSON(CmiTypeEnd, msg)
+}
 
-	readC := make(chan CmiCloseMsg, 1)
-	closeC := make(chan struct{})
-	defer close(closeC)
-
-	// read loop
-	go func(readC chan<- CmiCloseMsg, closeC chan struct{}, errC chan error) {
-		var msg CmiCloseMsg
-		for {
-			select {
-			case <-closeC:
-				return
-			default:
-				typ, err := c.readJSON(&msg)
-				if err == nil {
-					if typ == CmiTypeEnd {
-						readC <- msg
-						continue
-					} else {
-						err = fmt.Errorf("close: invalid type: %0x", typ)
-					}
-				}
-
-				errC <- fmt.Errorf("close: %w", err)
-			}
-		}
-	}(readC, closeC, errC)
+func (c *Connection) closeActive() error {
+	msg := CmiCloseMsg{
+		ConnectionClose: []ConnectionClose{
+			{
+				Phase:   CmiClosePhaseAnnounce,
+				MaxTime: int(CmiCloseTimeout / time.Millisecond),
+			},
+		},
+	}
+	if err := c.writeJSON(CmiTypeEnd, msg); err != nil {
+		return err
+	}
 
 	timer := time.NewTimer(CmiCloseTimeout)
 	for {
 		select {
-		case msg := <-readC:
-			log.Printf("close recv: %+v", msg)
+		case <-timer.C:
+			return errors.New("close: timeout")
 
-			switch msg.ConnectionClose[0].Phase {
+		default:
+			var msg CmiCloseMsg
+			typ, err := c.readJSON(&msg)
+
+			if err == nil && typ != CmiTypeEnd {
+				err = fmt.Errorf("close: invalid type: %0x", typ)
+			}
+
+			if err == nil && len(msg.ConnectionClose) != 1 {
+				err = errors.New("close: invalid length")
+			}
+
+			if err != nil {
+				return err
+			}
+
+			close := msg.ConnectionClose[0]
+
+			switch close.Phase {
 			case CmiClosePhaseConfirm:
 				return nil
 			default:
-				return errors.New("invalid close response")
+				return errors.New("close: invalid response")
 			}
-		case err := <-errC:
-			return err
-		case <-timer.C:
-			return errors.New("close timeout")
 		}
 	}
 }

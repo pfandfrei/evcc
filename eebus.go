@@ -39,27 +39,25 @@ const (
 func connectService(entry *zeroconf.ServiceEntry) {
 	ss, err := eebus.NewFromDNSEntry(entry)
 	if err == nil {
+		log.Printf("%s: client connect", entry.HostName)
 		err = ss.Connect()
-		log.Printf("connect %s: %v", entry.HostName, err)
 	}
 
 	if err == nil {
 		err = ss.Close()
 	}
 
-	if err != nil {
-		log.Println(err)
-	}
+	log.Printf("%s: client done: %v", entry.HostName, err)
 }
 
 func discoverDNS(results <-chan *zeroconf.ServiceEntry) {
 	for entry := range results {
-		// if entry.Instance == zeroconfInstance {
-		// 	continue
-		// }
+		if entry.Instance == zeroconfInstance {
+			connectService(entry)
+			continue
+		}
 
 		log.Println("mdns:", entry.HostName, entry.ServiceName(), entry.Text)
-		// connectService(entry)
 	}
 }
 
@@ -111,12 +109,10 @@ func createCertificate(isCA bool, cn string, hosts ...string) (tls.Certificate, 
 			Country:      []string{"DE"},
 			Organization: []string{"EVCC"},
 		},
-		SignatureAlgorithm: x509.ECDSAWithSHA256,
-		SubjectKeyId:       ski[:],
-		NotBefore:          time.Now(),
-		NotAfter:           time.Now().Add(time.Hour * 24 * 365 * 10),
-		// KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
-		// ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		SignatureAlgorithm:    x509.ECDSAWithSHA256,
+		SubjectKeyId:          ski[:],
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour * 24 * 365 * 10),
 		BasicConstraintsValid: true,
 	}
 
@@ -129,7 +125,6 @@ func createCertificate(isCA bool, cn string, hosts ...string) (tls.Certificate, 
 	}
 	if isCA {
 		template.IsCA = true
-		// template.KeyUsage |= x509.KeyUsageCertSign
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, publicKey(priv), priv)
@@ -179,8 +174,8 @@ func selfSignedConnection(cert tls.Certificate) func(uri string) (*websocket.Con
 			Subprotocols: []string{ship.SubProtocol},
 		}
 
-		conn, resp, err := dialer.Dial(uri, http.Header{})
-		log.Println("dial:", uri, resp, err)
+		conn, _, err := dialer.Dial(uri, http.Header{})
+		// log.Println("dial:", uri, resp, err)
 
 		return conn, err
 	}

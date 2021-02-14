@@ -28,10 +28,6 @@ type ConnectionHello struct {
 	ProlongationRequest bool   `json:"prolongationRequest,omitempty"`
 }
 
-type CmiHandshakeMsg struct {
-	ProtocolHandshake []ProtocolHandshake `json:"messageProtocolHandshake"`
-}
-
 func (c *Connection) init() error {
 	init := []byte{CmiTypeInit, CmiTypeInit}
 
@@ -92,6 +88,10 @@ func (c *Connection) hello() (err error) {
 
 			if err == nil && len(resp.ConnectionHello) != 1 {
 				err = errors.New("hello: invalid length")
+			}
+
+			if err != nil {
+				return err
 			}
 
 			hello := resp.ConnectionHello[0]

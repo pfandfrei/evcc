@@ -68,9 +68,26 @@ func (c *Connection) Serve() error {
 		_ = c.conn.Close()
 	}
 
-	time.Sleep(60 * time.Second)
+	timer := time.NewTimer(time.Minute)
+	for {
+		select {
+		case <-timer.C:
+			return nil
+		default:
+			var req CmiMessage
+			typ, err := c.readJSON(&req)
+			if err != nil {
+				return err
+			}
 
-	return err
+			typed := CmiDecode(req)
+			c.log().Printf("serve: %d %+v", typ, typed)
+
+			if _, ok := typed.(CmiCloseMsg); ok {
+				return c.Close(false)
+			}
+		}
+	}
 }
 
 func (c *Connection) writeBinary(msg []byte) error {
@@ -145,8 +162,16 @@ func (c *Connection) readJSON(jsonMsg interface{}) (byte, error) {
 }
 
 // Close closes the service connection
-func (c *Connection) Close() error {
-	err := c.close()
+func (c *Connection) Close(active bool) error {
+	var err error
+	if active {
+		err = c.closeActive()
+	} else {
+		err = c.closePassive()
+	}
+
+	// close physical connection
 	_ = c.conn.Close()
+
 	return err
 }

@@ -37,6 +37,7 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin:     func(r *http.Request) bool { return true },
+		Subprotocols:    []string{ship.SubProtocol},
 	}
 
 	// upgrade
@@ -46,6 +47,11 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	defer conn.Close()
+
+	// return and close connection
+	if conn.Subprotocol() != ship.SubProtocol {
+		return
+	}
 
 	// ship
 	sc := ship.New(conn)
