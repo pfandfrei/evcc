@@ -33,6 +33,9 @@ func NewServer(addr string, cert tls.Certificate) (*http.Server, error) {
 type Handler struct{}
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	log := log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[server] ", 0)
+	log.Printf("request: %v", r)
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
@@ -43,19 +46,21 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// upgrade
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	defer conn.Close()
 
 	// return and close connection
 	if conn.Subprotocol() != ship.SubProtocol {
+		log.Println("protocol mismatch:", conn.Subprotocol())
 		return
 	}
 
 	// ship
 	sc := ship.New(conn)
-	sc.Log = log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[server] ", 0)
+	sc.Log = log
 
 	if err := sc.Serve(); err != nil {
 		sc.Log.Println("connect:", err)
