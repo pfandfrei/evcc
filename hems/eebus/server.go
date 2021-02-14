@@ -3,6 +3,7 @@ package eebus
 import (
 	"crypto/tls"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -22,12 +23,28 @@ func NewServer(addr string, cert tls.Certificate) (*http.Server, error) {
 	}
 
 	go func() {
-		if err := s.ListenAndServeTLS("", ""); err != nil {
-			log.Fatal(err)
+		// if err := s.ListenAndServeTLS("", ""); err != nil {
+		// 	log.Fatal(err)
+		// }
+
+		if err := serve(s); err != nil {
+			log.Println(err)
 		}
 	}()
 
 	return s, nil
+}
+
+func serve(srv *http.Server) error {
+	ln, err := net.Listen("tcp", srv.Addr)
+	if err != nil {
+		return err
+	}
+
+	defer ln.Close()
+
+	tlsListener := tls.NewListener(ln, srv.TLSConfig)
+	return srv.Serve(tlsListener)
 }
 
 type Handler struct{}
