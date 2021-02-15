@@ -12,6 +12,7 @@ import (
 type Server struct {
 	Log Logger
 	*Transport
+	Handler func(req interface{}) error
 }
 
 func (c *Server) log() Logger {
@@ -94,8 +95,6 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 	}
 
 	if err == nil {
-		// return c.Close()
-
 		for {
 			var typ byte
 			var req CmiMessage
@@ -104,12 +103,27 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 				break
 			}
 
-			typed := CmiDecode(req)
+			var typed interface{}
+			typed, err = DecodeMessage(req)
+
+			c.log().Printf("serv: %d %+v", typ, typed)
+
+			if err != nil {
+				break
+			}
+
 			if _, ok := typed.(ConnectionClose); ok {
 				return c.acceptClose()
 			}
 
-			c.log().Printf("serve: %d %+v", typ, typed)
+			if c.Handler == nil {
+				err = errors.New("no handler")
+				break
+			}
+
+			if err = c.Handler(typed); err != nil {
+				break
+			}
 		}
 	}
 

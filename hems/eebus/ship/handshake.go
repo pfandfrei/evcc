@@ -16,6 +16,9 @@ const (
 	PinStateOptional = "optional"
 	PinStatePinOk    = "pinok"
 	PinStateNone     = "none"
+
+	PinInputPermissionOk   = "ok"
+	PinInputPermissionBusy = "busy"
 )
 
 type CmiProtocolHandshakeError struct {
@@ -42,19 +45,31 @@ type CmiConnectionPinState struct {
 }
 
 type ConnectionPinState struct {
-	PinState string `json:"pinState"`
+	PinState        string `json:"pinState"`
+	InputPermission string `json:"inputPermission"`
+}
+
+type CmiConnectionPinInput struct {
+	ConnectionPinInput []ConnectionPinInput `json:"connectionPinInput"`
+}
+
+type ConnectionPinInput struct {
+	PinState string `json:"pin"`
+}
+
+type CmiConnectionPinError struct {
+	ConnectionPinError []ConnectionPinError `json:"connectionPinError"`
+}
+
+type ConnectionPinError struct {
+	Error byte `json:"error"`
 }
 
 type CmiAccessMethodsRequest struct {
 	AccessMethodsRequest []AccessMethodsRequest `json:"accessMethodsRequest"`
 }
 
-type AccessMethodsRequest struct {
-	ID  string `json:"dnsSd_mDns,omitempty"`
-	DNS struct {
-		URI string `json:"uri"`
-	} `json:"dns,omitempty"`
-}
+type AccessMethodsRequest struct{}
 
 type CmiAccessMethods struct {
 	AccessMethods []AccessMethods `json:"accessMethods"`

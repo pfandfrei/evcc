@@ -115,3 +115,12 @@ func (c *Transport) waitJSON(jsonMsg interface{}) (byte, error) {
 
 	return c.handleJSON(b, &jsonMsg)
 }
+
+func (c *Transport) readJSONWithTimeout(timeout time.Duration, jsonMsg interface{}) (byte, error) {
+	err := c.Conn.SetReadDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return 0, err
+	}
+
+	return c.waitJSON(&jsonMsg)
+}

@@ -3,6 +3,7 @@ package ship
 import (
 	"bytes"
 	"fmt"
+	"os"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -14,6 +15,7 @@ type Client struct {
 	Log Logger
 	*Transport
 	closed bool
+	send   <-chan interface{}
 }
 
 func (c *Client) log() Logger {
@@ -72,7 +74,31 @@ func (c *Client) protocolHandshake() error {
 
 // Close performs ordered close of client connection
 func (c *Client) Close() error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if c.closed {
+		return os.ErrClosed
+	}
+
+	c.closed = true
+
 	return c.close()
+}
+
+func (c *Client) pump() {
+	for {
+		var err error
+		select {
+		case req := <-c.send:
+			err = c.writeJSON(CmiTypeData, req)
+		}
+
+		if err != nil {
+			c.log().Println(err)
+			break
+		}
+	}
 }
 
 // Connect performs the client connection handshake
@@ -90,13 +116,36 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 		err = c.protocolHandshake()
 	}
 
-	if err == nil {
-		_ = c.Close()
-	}
-
 	// close connection if handshake or hello fails
 	if err != nil {
 		_ = c.Close()
+	}
+
+	return err
+}
+
+func (c *Client) Write(req interface{}) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if c.closed {
+		return os.ErrClosed
+	}
+
+	return c.writeJSON(CmiTypeData, req)
+}
+
+func (c *Client) Read(res interface{}) error {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+
+	if c.closed {
+		return os.ErrClosed
+	}
+
+	typ, err := c.readJSON(&res)
+	if err == nil && typ != CmiTypeData {
+		err = fmt.Errorf("read: invalid type: %0x", typ)
 	}
 
 	return err

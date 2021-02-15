@@ -39,7 +39,7 @@ func (c *Transport) close() error {
 
 		default:
 			var msg CmiCloseMsg
-			typ, err := c.readJSON(&msg)
+			typ, err := c.readJSONWithTimeout(CmiCloseTimeout, &msg)
 
 			if err == nil && typ != CmiTypeEnd {
 				err = fmt.Errorf("close: invalid type: %0x", typ)
