@@ -24,9 +24,7 @@ func (c *Transport) log() Logger {
 }
 
 func (c *Transport) writeBinary(msg []byte) error {
-	if len(msg) < 3 {
-		c.log().Printf("send: %0 x", msg)
-	} else {
+	if len(msg) > 2 {
 		c.log().Println("send:", string(msg))
 	}
 
@@ -59,9 +57,7 @@ func (c *Transport) readBinaryNoDeadline() ([]byte, error) {
 	typ, msg, err := c.Conn.ReadMessage()
 
 	if err == nil {
-		if len(msg) < 3 {
-			c.log().Printf("recv: %0 x", msg)
-		} else {
+		if len(msg) > 2 {
 			c.log().Println("recv:", string(msg))
 		}
 

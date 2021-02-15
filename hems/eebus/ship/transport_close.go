@@ -49,18 +49,16 @@ func (c *Transport) close() error {
 				err = errors.New("close: invalid length")
 			}
 
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				close := msg.ConnectionClose[0]
 
-			close := msg.ConnectionClose[0]
+				switch close.Phase {
+				case CmiClosePhaseConfirm:
+					return nil
 
-			switch close.Phase {
-			case CmiClosePhaseConfirm:
-				return nil
-
-			default:
-				return errors.New("close: invalid response")
+				default:
+					return errors.New("close: invalid response")
+				}
 			}
 		}
 	}

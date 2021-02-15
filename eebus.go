@@ -44,8 +44,6 @@ func connectService(entry *zeroconf.ServiceEntry) {
 	}
 
 	if err == nil {
-		log.Printf("%s: client waiting", entry.HostName)
-		time.Sleep(30 * time.Second)
 		err = ss.Close()
 	}
 

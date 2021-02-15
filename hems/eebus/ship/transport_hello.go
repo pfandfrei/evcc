@@ -41,26 +41,24 @@ func (c *Transport) hello() error {
 				err = errors.New("hello: invalid length")
 			}
 
-			if err != nil {
-				return err
-			}
+			if err == nil {
+				hello := resp.ConnectionHello[0]
 
-			hello := resp.ConnectionHello[0]
+				switch hello.Phase {
+				case CmiHelloPhaseAborted:
+					return errors.New("hello: aborted by peer")
 
-			switch hello.Phase {
-			case CmiHelloPhaseAborted:
-				return errors.New("hello: aborted by peer")
+				case CmiHelloPhaseReady:
+					return nil
 
-			case CmiHelloPhaseReady:
-				return nil
+				case CmiHelloPhasePending:
+					if hello.ProlongationRequest {
+						timer = time.NewTimer(CmiHelloProlongationTimeout)
+					}
 
-			case CmiHelloPhasePending:
-				if hello.ProlongationRequest {
-					timer = time.NewTimer(CmiHelloProlongationTimeout)
+				default:
+					return errors.New("hello: invalid response")
 				}
-
-			default:
-				return errors.New("hello: invalid response")
 			}
 		}
 	}

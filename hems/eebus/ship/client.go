@@ -9,10 +9,11 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Client is the SHIP client
+// Client is the ship client
 type Client struct {
 	mux sync.Mutex
 	Log Logger
+	Pin string
 	*Transport
 	closed bool
 	send   <-chan interface{}
@@ -72,6 +73,40 @@ func (c *Client) protocolHandshake() error {
 	return err
 }
 
+func (c *Client) pinState() error {
+	req := CmiConnectionPinState{
+		ConnectionPinState: []ConnectionPinState{
+			{
+				PinState: PinStateNone,
+			},
+		},
+	}
+	if err := c.writeJSON(CmiTypeControl, req); err != nil {
+		return err
+	}
+
+	ps, err := c.readPinState()
+
+	if err == nil {
+		// ps := resp.ConnectionPinState[0]
+
+		if ps.PinState == PinStateRequired || (ps.PinState == PinStateOptional && c.Pin != "") {
+			req := CmiConnectionPinInput{
+				ConnectionPinInput: []ConnectionPinInput{
+					{
+						Pin: c.Pin,
+					},
+				},
+			}
+			err = c.writeJSON(CmiTypeControl, req)
+		}
+	}
+
+	// TODO check if next message is pin error
+
+	return err
+}
+
 // Close performs ordered close of client connection
 func (c *Client) Close() error {
 	c.mux.Lock()
@@ -114,6 +149,15 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 	}
 	if err == nil {
 		err = c.protocolHandshake()
+	}
+	if err == nil {
+		err = c.pinState()
+	}
+	if err == nil {
+		err = c.accessMethodsRequest()
+	}
+	if err == nil {
+		err = c.accessMethods()
 	}
 
 	// close connection if handshake or hello fails

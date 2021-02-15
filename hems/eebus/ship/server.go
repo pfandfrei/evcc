@@ -11,6 +11,7 @@ import (
 // Server is the SHIP server
 type Server struct {
 	Log Logger
+	Pin string
 	*Transport
 	Handler func(req interface{}) error
 }
@@ -48,27 +49,81 @@ func (c *Server) protocolHandshake() error {
 	}
 
 	if err == nil && len(req.MessageProtocolHandshake) != 1 {
-		return errors.New("handshake: invalid length")
+		err = errors.New("handshake: invalid length")
 	}
 
-	hs := req.MessageProtocolHandshake[0]
+	if err == nil {
+		hs := req.MessageProtocolHandshake[0]
 
-	if hs.HandshakeType != ProtocolHandshakeTypeAnnounceMax || len(hs.Formats) != 1 || hs.Formats[0] != ProtocolHandshakeFormatJSON {
-		msg := CmiProtocolHandshakeError{
-			Error: CmiProtocolHandshakeErrorUnexpectedMessage,
+		if hs.HandshakeType != ProtocolHandshakeTypeAnnounceMax || len(hs.Formats) != 1 || hs.Formats[0] != ProtocolHandshakeFormatJSON {
+			msg := CmiProtocolHandshakeError{
+				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
+			}
+
+			_ = c.writeJSON(CmiTypeControl, msg)
+			return errors.New("handshake: invalid response")
 		}
 
-		_ = c.writeJSON(CmiTypeControl, msg)
-		return errors.New("handshake: invalid response")
+		// send selection to client
+		req.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
+		err = c.writeJSON(CmiTypeControl, req)
 	}
-
-	// send selection to client
-	req.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
-	err = c.writeJSON(CmiTypeControl, req)
 
 	// receive selection back from client
 	if err == nil {
 		_, err = c.handshakeReceiveSelect()
+	}
+
+	return err
+}
+
+func (c *Server) pinState() error {
+	pinState := PinStateNone
+	var inputPermission string
+	if c.Pin != "" {
+		pinState = PinStateRequired
+		inputPermission = PinInputPermissionOk
+	}
+
+	req := CmiConnectionPinState{
+		ConnectionPinState: []ConnectionPinState{
+			{
+				PinState:        pinState,
+				InputPermission: inputPermission,
+			},
+		},
+	}
+	err := c.writeJSON(CmiTypeControl, req)
+
+	// verify client pin
+	var pi ConnectionPinInput
+	for err == nil && pi.Pin != c.Pin {
+		var resp CmiConnectionPinInput
+		typ, err := c.readJSON(&resp)
+
+		if err == nil && typ != CmiTypeControl {
+			err = errors.New("pin: invalid type")
+		}
+
+		if err == nil && len(resp.ConnectionPinInput) != 1 {
+			err = errors.New("pin: invalid length")
+		}
+
+		if err == nil {
+			pi = resp.ConnectionPinInput[0]
+
+			// signal error to client
+			if pi.Pin != c.Pin {
+				req := CmiConnectionPinError{
+					ConnectionPinError: []ConnectionPinError{
+						{
+							Error: 1,
+						},
+					},
+				}
+				err = c.writeJSON(CmiTypeControl, req)
+			}
+		}
 	}
 
 	return err
@@ -92,6 +147,15 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 	}
 	if err == nil {
 		err = c.protocolHandshake()
+	}
+	if err == nil {
+		err = c.pinState()
+	}
+	if err == nil {
+		err = c.accessMethodsRequest()
+	}
+	if err == nil {
+		err = c.accessMethods()
 	}
 
 	if err == nil {

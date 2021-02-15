@@ -46,7 +46,7 @@ type CmiConnectionPinState struct {
 
 type ConnectionPinState struct {
 	PinState        string `json:"pinState"`
-	InputPermission string `json:"inputPermission"`
+	InputPermission string `json:"inputPermission,omitempty"`
 }
 
 type CmiConnectionPinInput struct {
@@ -54,7 +54,7 @@ type CmiConnectionPinInput struct {
 }
 
 type ConnectionPinInput struct {
-	PinState string `json:"pin"`
+	Pin string `json:"pin"`
 }
 
 type CmiConnectionPinError struct {
@@ -76,8 +76,9 @@ type CmiAccessMethods struct {
 }
 
 type AccessMethods struct {
-	ID  string `json:"dnsSd_mDns,omitempty"`
-	DNS struct {
+	ID        string `json:"id"`
+	DnsSDmDns string `json:"dnsSd_mDns,omitempty"`
+	Dns       *struct {
 		URI string `json:"uri"`
 	} `json:"dns,omitempty"`
 }
