@@ -1,9 +1,12 @@
 package ship
 
-const CmiTypeData byte = 2
+// data constants
+const (
+	CmiTypeData byte = 2
+)
 
 type CmiDataMsg struct {
-	Data `json:"data"`
+	Data []Data `json:"data"`
 }
 
 type Data struct {

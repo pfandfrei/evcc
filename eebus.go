@@ -44,6 +44,8 @@ func connectService(entry *zeroconf.ServiceEntry) {
 	}
 
 	if err == nil {
+		log.Printf("%s: client waiting", entry.HostName)
+		time.Sleep(30 * time.Second)
 		err = ss.Close()
 	}
 
@@ -230,8 +232,6 @@ func main() {
 		log.Fatalln(err)
 	}
 	defer server.Shutdown()
-
-	// os.Exit(0)
 
 	entries := make(chan *zeroconf.ServiceEntry)
 	go discoverDNS(entries)

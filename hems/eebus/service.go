@@ -12,8 +12,6 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-const shipScheme = "wss://"
-
 // ServiceDescription contains the ship service parameters
 type ServiceDescription struct {
 	Model, Brand string
@@ -27,7 +25,7 @@ type ServiceDescription struct {
 type Service struct {
 	ServiceDescription
 	URI  string
-	Conn *ship.Connection
+	Conn *ship.Client
 }
 
 // NewFromDNSEntry creates ship service from its DNS definition
@@ -59,7 +57,7 @@ func NewFromDNSEntry(zc *zeroconf.ServiceEntry) (*Service, error) {
 
 // baseURIFromDNS returns the service URI
 func baseURIFromDNS(zc *zeroconf.ServiceEntry) string {
-	uri := shipScheme + zc.HostName
+	uri := ship.Scheme + zc.HostName
 	if zc.Port != 443 {
 		uri += fmt.Sprintf(":%d", zc.Port)
 	}
@@ -78,15 +76,16 @@ func (ss *Service) Connect() error {
 		return err
 	}
 
-	sc := ship.New(conn)
-	sc.Log = log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[client] ", 0)
+	sc := &ship.Client{
+		Log: log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[client] ", 0),
+	}
 
 	ss.Conn = sc
 
-	return ss.Conn.Connect()
+	return ss.Conn.Connect(conn)
 }
 
 // Close closes the service connection
 func (ss *Service) Close() error {
-	return ss.Conn.Close(true)
+	return ss.Conn.Close()
 }

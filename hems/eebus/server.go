@@ -76,11 +76,13 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// ship
-	sc := ship.New(conn)
-	sc.Log = log
-
-	if err := sc.Serve(); err != nil {
-		sc.Log.Println("connect:", err)
-		return
+	sc := &ship.Server{
+		Log: log,
 	}
+
+	if err := sc.Serve(conn); err != nil {
+		log.Println(err)
+	}
+
+	log.Println("done")
 }
