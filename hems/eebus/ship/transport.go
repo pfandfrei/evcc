@@ -13,6 +13,7 @@ import (
 
 const cmiReadWriteTimeout = 10 * time.Second
 
+// ErrTimeout is the timeout error
 var ErrTimeout = errors.New("timeout")
 
 // Transport is the physical transport layer
