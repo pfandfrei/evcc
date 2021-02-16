@@ -61,7 +61,6 @@ func baseURIFromDNS(zc *zeroconf.ServiceEntry) string {
 	if zc.Port != 443 {
 		uri += fmt.Sprintf(":%d", zc.Port)
 	}
-	fmt.Println("uri: " + uri)
 
 	return uri
 }

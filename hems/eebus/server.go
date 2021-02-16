@@ -34,7 +34,6 @@ type Handler struct{}
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log := log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[server] ", 0)
-	log.Printf("request: %v", r)
 
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
