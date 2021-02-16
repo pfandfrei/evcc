@@ -50,6 +50,7 @@ func (c *Transport) pinState(local, remote string) error {
 		}
 
 		switch typed := msg.(type) {
+		// local pin
 		case ConnectionPinInput:
 			pinEntered = typed.Pin
 
@@ -61,6 +62,9 @@ func (c *Transport) pinState(local, remote string) error {
 					},
 				})
 			}
+
+		// remote pin
+		// case ConnectionPinState:
 
 		case ConnectionPinError:
 			err = errors.New("pin: remote pin mismatched")

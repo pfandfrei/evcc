@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -57,7 +56,7 @@ func (c *Client) protocolHandshake() error {
 		MessageProtocolHandshake: []MessageProtocolHandshake{
 			{
 				HandshakeType: ProtocolHandshakeTypeAnnounceMax,
-				Version:       Version{Major: 1, Minor: 0},
+				Version:       []Version{{Major: 1, Minor: 0}},
 				Formats:       []string{ProtocolHandshakeFormatJSON},
 			},
 		},
@@ -123,7 +122,6 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 		_ = c.Close()
 	}
 
-	time.Sleep(10 * time.Second)
 	return err
 }
 

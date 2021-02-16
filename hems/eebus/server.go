@@ -60,9 +60,9 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// ship
 	sc := &ship.Server{
-		Log:           log,
-		LocalPin:      "",
-		AccessMethods: []string{"blablubb"},
+		Log: log,
+		// LocalPin:      "1122",
+		// AccessMethods: []string{"blablubb"},
 	}
 
 	if err := sc.Serve(conn); err != nil {

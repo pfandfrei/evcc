@@ -15,8 +15,8 @@ type CmiMessage struct {
 	*CmiCloseMsg
 }
 
-// DecodeMessage extract ship message core
-func DecodeMessage(msg CmiMessage) (res interface{}, err error) {
+// decodeCmi extract ship message core
+func decodeCmi(msg CmiMessage) (res interface{}, err error) {
 	switch {
 	case msg.CmiHelloMsg != nil:
 		res = ConnectionHello{}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/rand"
 	"net"
 	"time"
 
@@ -32,9 +33,9 @@ func (c *Transport) log() Logger {
 }
 
 func (c *Transport) writeBinary(msg []byte) error {
-	// if len(msg) > 2 {
-	// 	c.log().Println("send:", string(msg))
-	// }
+	if len(msg) > 2 {
+		c.log().Println("send:", string(msg))
+	}
 
 	err := c.Conn.SetWriteDeadline(time.Now().Add(cmiReadWriteTimeout))
 	if err == nil {
@@ -121,7 +122,7 @@ func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
 			return nil, err
 		}
 
-		return DecodeMessage(cmi)
+		return decodeCmi(cmi)
 
 	case err := <-c.errC:
 		return nil, err

@@ -118,8 +118,6 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 		err = c.accessMethods(c.AccessMethods)
 	}
 
-	c.log().Println(err)
-
 	for err == nil {
 		endless := make(chan time.Time)
 
