@@ -55,7 +55,7 @@ func (c *Client) protocolHandshake() error {
 	hs := CmiHandshakeMsg{
 		MessageProtocolHandshake: []MessageProtocolHandshake{
 			{
-				HandshakeType: ProtocolHandshakeTypeAnnounceMax,
+				HandshakeType: HandshakeType{ProtocolHandshakeTypeAnnounceMax},
 				Version:       []Version{{Major: 1, Minor: 0}},
 				Formats:       []Format{{Format: ProtocolHandshakeFormatJSON}},
 			},
@@ -68,7 +68,7 @@ func (c *Client) protocolHandshake() error {
 	// receive server selection and send selection back to server
 	err := c.handshakeReceiveSelect()
 	if err == nil {
-		hs.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
+		hs.MessageProtocolHandshake[0].HandshakeType.HandshakeType = ProtocolHandshakeTypeSelect
 		err = c.writeJSON(CmiTypeControl, hs)
 	}
 

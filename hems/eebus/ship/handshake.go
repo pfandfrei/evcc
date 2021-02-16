@@ -30,9 +30,13 @@ type CmiHandshakeMsg struct {
 }
 
 type MessageProtocolHandshake struct {
-	HandshakeType string    `json:"handshakeType"`
-	Version       []Version `json:"version"`
-	Formats       []Format  `json:"formats"`
+	HandshakeType HandshakeType `json:"handshakeType"`
+	Version       []Version     `json:"version"`
+	Formats       []Format      `json:"formats"`
+}
+
+type HandshakeType struct {
+	HandshakeType string `json:"handshakeType"`
 }
 
 type Version struct {
