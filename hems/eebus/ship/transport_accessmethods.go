@@ -2,41 +2,40 @@ package ship
 
 import (
 	"errors"
+	"time"
 )
 
 // accessMethodsRequest
-func (c *Transport) accessMethodsRequest() error {
-	req := CmiAccessMethodsRequest{
+func (c *Transport) accessMethods(methods []string) error {
+	err := c.writeJSON(CmiTypeControl, CmiAccessMethodsRequest{
 		AccessMethodsRequest: []AccessMethodsRequest{},
-	}
-	if err := c.writeJSON(CmiTypeControl, req); err != nil {
-		return err
-	}
+	})
 
-	var resp CmiAccessMethodsRequest
-	typ, err := c.readJSON(&resp)
+	for err == nil {
+		timer := time.NewTimer(cmiReadWriteTimeout)
+		msg, err := c.readMessage(timer.C)
 
-	if err == nil && typ != CmiTypeControl {
-		err = errors.New("access methods request: invalid type")
-	}
+		if err != nil {
+			break
+		}
 
-	return err
-}
+		switch msg.(type) {
+		case AccessMethods:
+			// access methods received
+			return nil
 
-// accessMethods
-func (c *Transport) accessMethods() error {
-	req := CmiAccessMethods{
-		AccessMethods: []AccessMethods{},
-	}
-	if err := c.writeJSON(CmiTypeControl, req); err != nil {
-		return err
-	}
+		case AccessMethodsRequest:
+			am := make([]AccessMethods, 0, len(methods))
+			for _, m := range methods {
+				am = append(am, AccessMethods{ID: m})
+			}
+			err = c.writeJSON(CmiTypeControl, CmiAccessMethods{
+				AccessMethods: am,
+			})
 
-	var resp CmiAccessMethods
-	typ, err := c.readJSON(&resp)
-
-	if err == nil && typ != CmiTypeControl {
-		err = errors.New("access methods: invalid type")
+		default:
+			err = errors.New("access methods: invalid type")
+		}
 	}
 
 	return err

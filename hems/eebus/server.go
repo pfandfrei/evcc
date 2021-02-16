@@ -60,8 +60,8 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// ship
 	sc := &ship.Server{
-		Log: log,
-		Pin: "",
+		Log:      log,
+		LocalPin: "",
 	}
 
 	if err := sc.Serve(conn); err != nil {

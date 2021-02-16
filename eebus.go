@@ -53,7 +53,7 @@ func connectService(entry *zeroconf.ServiceEntry) {
 func discoverDNS(results <-chan *zeroconf.ServiceEntry) {
 	for entry := range results {
 		if entry.Instance == zeroconfInstance {
-			// connectService(entry)
+			connectService(entry)
 			continue
 		}
 

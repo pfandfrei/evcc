@@ -1,11 +1,10 @@
 package ship
 
-import (
-	"fmt"
-)
+import "errors"
 
 // CmiMessage is used to identify the defined message types
 type CmiMessage struct {
+	*CmiHelloMsg
 	*CmiHandshakeMsg
 	*CmiConnectionPinState
 	*CmiConnectionPinInput
@@ -19,6 +18,12 @@ type CmiMessage struct {
 // DecodeMessage extract ship message core
 func DecodeMessage(msg CmiMessage) (res interface{}, err error) {
 	switch {
+	case msg.CmiHelloMsg != nil:
+		res = ConnectionHello{}
+		if len(msg.CmiHelloMsg.ConnectionHello) == 1 {
+			res = msg.CmiHelloMsg.ConnectionHello[0]
+		}
+
 	case msg.CmiHandshakeMsg != nil:
 		res = MessageProtocolHandshake{}
 		if len(msg.CmiHandshakeMsg.MessageProtocolHandshake) == 1 {
@@ -65,7 +70,7 @@ func DecodeMessage(msg CmiMessage) (res interface{}, err error) {
 		}
 
 	default:
-		err = fmt.Errorf("invalid type received")
+		err = errors.New("invalid type")
 	}
 
 	return

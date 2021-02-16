@@ -5,15 +5,17 @@ import (
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 // Client is the ship client
 type Client struct {
-	mux sync.Mutex
-	Log Logger
-	Pin string
+	mux                 sync.Mutex
+	Log                 Logger
+	LocalPin, RemotePin string
+	AccessMethods       []string
 	*Transport
 	closed bool
 	send   <-chan interface{}
@@ -44,11 +46,14 @@ func (c *Client) init() error {
 		return fmt.Errorf("init: invalid response: %0 x", msg)
 	}
 
+	// move to control phase
+	c.phase = CmiTypeControl
+
 	return nil
 }
 
 func (c *Client) protocolHandshake() error {
-	req := CmiHandshakeMsg{
+	hs := CmiHandshakeMsg{
 		MessageProtocolHandshake: []MessageProtocolHandshake{
 			{
 				HandshakeType: ProtocolHandshakeTypeAnnounceMax,
@@ -57,52 +62,16 @@ func (c *Client) protocolHandshake() error {
 			},
 		},
 	}
-	err := c.writeJSON(CmiTypeControl, req)
+	if err := c.writeJSON(CmiTypeControl, hs); err != nil {
+		return fmt.Errorf("handshake: %w", err)
+	}
 
-	// receive server selection
-	var resp CmiHandshakeMsg
+	// receive server selection and send selection back to server
+	err := c.handshakeReceiveSelect()
 	if err == nil {
-		resp, err = c.handshakeReceiveSelect()
+		hs.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
+		err = c.writeJSON(CmiTypeControl, hs)
 	}
-
-	// send selection back to server
-	if err == nil {
-		err = c.writeJSON(CmiTypeControl, resp)
-	}
-
-	return err
-}
-
-func (c *Client) pinState() error {
-	req := CmiConnectionPinState{
-		ConnectionPinState: []ConnectionPinState{
-			{
-				PinState: PinStateNone,
-			},
-		},
-	}
-	if err := c.writeJSON(CmiTypeControl, req); err != nil {
-		return err
-	}
-
-	ps, err := c.readPinState()
-
-	if err == nil {
-		// ps := resp.ConnectionPinState[0]
-
-		if ps.PinState == PinStateRequired || (ps.PinState == PinStateOptional && c.Pin != "") {
-			req := CmiConnectionPinInput{
-				ConnectionPinInput: []ConnectionPinInput{
-					{
-						Pin: c.Pin,
-					},
-				},
-			}
-			err = c.writeJSON(CmiTypeControl, req)
-		}
-	}
-
-	// TODO check if next message is pin error
 
 	return err
 }
@@ -121,43 +90,32 @@ func (c *Client) Close() error {
 	return c.close()
 }
 
-func (c *Client) pump() {
-	for {
-		var err error
-		select {
-		case req := <-c.send:
-			err = c.writeJSON(CmiTypeData, req)
-		}
-
-		if err != nil {
-			c.log().Println(err)
-			break
-		}
-	}
-}
-
 // Connect performs the client connection handshake
 func (c *Client) Connect(conn *websocket.Conn) error {
 	c.Transport = &Transport{
-		Conn: conn,
-		Log:  c.log(),
+		Conn:   conn,
+		Log:    c.log(),
+		inC:    make(chan []byte, 1),
+		errC:   make(chan error, 1),
+		closeC: make(chan struct{}, 1),
 	}
 
-	err := c.init()
-	if err == nil {
-		err = c.hello()
+	if err := c.init(); err != nil {
+		return err
 	}
+
+	// start consuming messages
+	go c.readPump()
+
+	err := c.hello()
 	if err == nil {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState()
+		err = c.pinState(c.LocalPin, c.RemotePin)
 	}
 	if err == nil {
-		err = c.accessMethodsRequest()
-	}
-	if err == nil {
-		err = c.accessMethods()
+		err = c.accessMethods(c.AccessMethods)
 	}
 
 	// close connection if handshake or hello fails
@@ -165,32 +123,33 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 		_ = c.Close()
 	}
 
+	time.Sleep(10 * time.Second)
 	return err
 }
 
-func (c *Client) Write(req interface{}) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+// func (c *Client) Write(req interface{}) error {
+// 	c.mux.Lock()
+// 	defer c.mux.Unlock()
 
-	if c.closed {
-		return os.ErrClosed
-	}
+// 	if c.closed {
+// 		return os.ErrClosed
+// 	}
 
-	return c.writeJSON(CmiTypeData, req)
-}
+// 	return c.writeJSON(CmiTypeData, req)
+// }
 
-func (c *Client) Read(res interface{}) error {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+// func (c *Client) Read(res interface{}) error {
+// 	c.mux.Lock()
+// 	defer c.mux.Unlock()
 
-	if c.closed {
-		return os.ErrClosed
-	}
+// 	if c.closed {
+// 		return os.ErrClosed
+// 	}
 
-	typ, err := c.readJSON(&res)
-	if err == nil && typ != CmiTypeData {
-		err = fmt.Errorf("read: invalid type: %0x", typ)
-	}
+// 	typ, err := c.readJSON(&res)
+// 	if err == nil && typ != CmiTypeData {
+// 		err = fmt.Errorf("read: invalid type: %0x", typ)
+// 	}
 
-	return err
-}
+// 	return err
+// }

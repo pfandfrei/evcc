@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
 // Server is the SHIP server
 type Server struct {
-	Log Logger
-	Pin string
+	Log                 Logger
+	LocalPin, RemotePin string
+	AccessMethods       []string
 	*Transport
 	Handler func(req interface{}) error
 }
@@ -41,89 +43,43 @@ func (c *Server) init() error {
 }
 
 func (c *Server) protocolHandshake() error {
-	var req CmiHandshakeMsg
-	typ, err := c.readJSON(&req)
+	timer := time.NewTimer(cmiReadWriteTimeout)
+	msg, err := c.readMessage(timer.C)
+	if err != nil {
+		if errors.Is(err, ErrTimeout) {
+			_ = c.writeJSON(CmiTypeControl, CmiProtocolHandshakeError{
+				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
+			})
+		}
 
-	if err == nil && typ != CmiTypeControl {
-		err = fmt.Errorf("handshake: invalid type: %0x", typ)
+		return err
 	}
 
-	if err == nil && len(req.MessageProtocolHandshake) != 1 {
-		err = errors.New("handshake: invalid length")
-	}
-
-	if err == nil {
-		hs := req.MessageProtocolHandshake[0]
-
+	switch hs := msg.(type) {
+	case MessageProtocolHandshake:
 		if hs.HandshakeType != ProtocolHandshakeTypeAnnounceMax || len(hs.Formats) != 1 || hs.Formats[0] != ProtocolHandshakeFormatJSON {
 			msg := CmiProtocolHandshakeError{
 				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
 			}
 
 			_ = c.writeJSON(CmiTypeControl, msg)
-			return errors.New("handshake: invalid response")
+			err = errors.New("handshake: invalid response")
+			break
 		}
 
 		// send selection to client
-		req.MessageProtocolHandshake[0].HandshakeType = ProtocolHandshakeTypeSelect
-		err = c.writeJSON(CmiTypeControl, req)
+		hs.HandshakeType = ProtocolHandshakeTypeSelect
+		err = c.writeJSON(CmiTypeControl, CmiHandshakeMsg{
+			MessageProtocolHandshake: []MessageProtocolHandshake{hs},
+		})
+
+	default:
+		return fmt.Errorf("handshake: invalid type")
 	}
 
 	// receive selection back from client
 	if err == nil {
-		_, err = c.handshakeReceiveSelect()
-	}
-
-	return err
-}
-
-func (c *Server) pinState() error {
-	pinState := PinStateNone
-	var inputPermission string
-	if c.Pin != "" {
-		pinState = PinStateRequired
-		inputPermission = PinInputPermissionOk
-	}
-
-	req := CmiConnectionPinState{
-		ConnectionPinState: []ConnectionPinState{
-			{
-				PinState:        pinState,
-				InputPermission: inputPermission,
-			},
-		},
-	}
-	err := c.writeJSON(CmiTypeControl, req)
-
-	// verify client pin
-	var pi ConnectionPinInput
-	for err == nil && pi.Pin != c.Pin {
-		var resp CmiConnectionPinInput
-		typ, err := c.readJSON(&resp)
-
-		if err == nil && typ != CmiTypeControl {
-			err = errors.New("pin: invalid type")
-		}
-
-		if err == nil && len(resp.ConnectionPinInput) != 1 {
-			err = errors.New("pin: invalid length")
-		}
-
-		if err == nil {
-			pi = resp.ConnectionPinInput[0]
-
-			// signal error to client
-			if pi.Pin != c.Pin {
-				req := CmiConnectionPinError{
-					ConnectionPinError: []ConnectionPinError{
-						{
-							Error: 1,
-						},
-					},
-				}
-				err = c.writeJSON(CmiTypeControl, req)
-			}
-		}
+		err = c.handshakeReceiveSelect()
 	}
 
 	return err
@@ -137,49 +93,48 @@ func (c *Server) Close() error {
 // Serve performs the server connection handshake
 func (c *Server) Serve(conn *websocket.Conn) error {
 	c.Transport = &Transport{
-		Conn: conn,
-		Log:  c.log(),
+		Conn:   conn,
+		Log:    c.log(),
+		inC:    make(chan []byte, 1),
+		errC:   make(chan error, 1),
+		closeC: make(chan struct{}, 1),
 	}
 
-	err := c.init()
-	if err == nil {
-		err = c.hello()
+	if err := c.init(); err != nil {
+		return err
 	}
+
+	// start consuming messages
+	go c.readPump()
+
+	err := c.hello()
 	if err == nil {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState()
+		err = c.pinState(c.LocalPin, c.RemotePin)
 	}
 	if err == nil {
-		err = c.accessMethodsRequest()
-	}
-	if err == nil {
-		err = c.accessMethods()
+		err = c.accessMethods(c.AccessMethods)
 	}
 
-	if err == nil {
-		for {
-			var typ byte
-			var req CmiMessage
-			typ, err = c.waitJSON(&req)
-			if err != nil {
-				break
-			}
+	c.log().Println(err)
 
-			var typed interface{}
-			typed, err = DecodeMessage(req)
+	for err == nil {
+		endless := make(chan time.Time)
 
-			c.log().Printf("serv: %d %+v", typ, typed)
+		var msg interface{}
+		msg, err = c.readMessage(endless)
+		if err != nil {
+			break
+		}
 
-			if err != nil {
-				break
-			}
+		switch typed := msg.(type) {
+		case ConnectionClose:
+			return c.acceptClose()
 
-			if _, ok := typed.(ConnectionClose); ok {
-				return c.acceptClose()
-			}
-
+		case Data:
+			c.log().Printf("serv: %+v", msg)
 			if c.Handler == nil {
 				err = errors.New("no handler")
 				break
@@ -188,6 +143,9 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 			if err = c.Handler(typed); err != nil {
 				break
 			}
+
+		default:
+			err = errors.New("invalid type")
 		}
 	}
 

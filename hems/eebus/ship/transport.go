@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -12,10 +13,17 @@ import (
 
 const cmiReadWriteTimeout = 10 * time.Second
 
+var ErrTimeout = errors.New("timeout")
+
 // Transport is the physical transport layer
 type Transport struct {
 	Conn *websocket.Conn
 	Log  Logger
+
+	phase  byte
+	inC    chan []byte
+	errC   chan error
+	closeC chan struct{}
 }
 
 func (c *Transport) log() Logger {
@@ -23,9 +31,9 @@ func (c *Transport) log() Logger {
 }
 
 func (c *Transport) writeBinary(msg []byte) error {
-	if len(msg) > 2 {
-		c.log().Println("send:", string(msg))
-	}
+	// if len(msg) > 2 {
+	// 	c.log().Println("send:", string(msg))
+	// }
 
 	err := c.Conn.SetWriteDeadline(time.Now().Add(cmiReadWriteTimeout))
 	if err == nil {
@@ -43,10 +51,7 @@ func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
 
 	// add header
 	b := bytes.NewBuffer([]byte{typ})
-
-	// _, err = b.WriteString(strconv.Quote(string(msg)))
-	_, err = b.Write(msg)
-	if err == nil {
+	if _, err = b.Write(msg); err == nil {
 		err = c.writeBinary(b.Bytes())
 	}
 
@@ -78,53 +83,46 @@ func (c *Transport) readBinary() ([]byte, error) {
 	return c.readBinaryNoDeadline()
 }
 
-func (c *Transport) handleJSON(b []byte, jsonMsg interface{}) (byte, error) {
-	if len(b) < 2 {
-		return 0, errors.New("invalid message")
+func (c *Transport) readPump() {
+	for {
+		select {
+		case <-c.closeC:
+			return
+
+		default:
+			if b, err := c.readBinaryNoDeadline(); err != nil {
+				c.errC <- err
+			} else {
+				c.inC <- b
+			}
+		}
 	}
-
-	typ := b[0]
-
-	// q, err := strconv.Unquote(string(b[1:]))
-	// if err == nil {
-	// 	msg := []byte(q)
-	// 	err = json.Unmarshal(msg, &jsonMsg)
-	// }
-	err := json.Unmarshal(b[1:], &jsonMsg)
-
-	return typ, err
 }
 
-func (c *Transport) readJSON(jsonMsg interface{}) (byte, error) {
-	b, err := c.readBinary()
-	if err != nil {
-		return 0, err
+func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
+	select {
+	case <-timerC:
+		return nil, ErrTimeout
+
+	case <-c.closeC:
+		return nil, net.ErrClosed
+
+	case b := <-c.inC:
+		if len(b) < 2 {
+			return nil, errors.New("invalid length")
+		}
+		if b[0] < 1 {
+			return nil, errors.New("invalid phase")
+		}
+
+		var cmi CmiMessage
+		if err := json.Unmarshal(b[1:], &cmi); err != nil {
+			return nil, err
+		}
+
+		return DecodeMessage(cmi)
+
+	case err := <-c.errC:
+		return nil, err
 	}
-
-	return c.handleJSON(b, &jsonMsg)
 }
-
-func (c *Transport) waitJSON(jsonMsg interface{}) (byte, error) {
-	b, err := c.readBinaryNoDeadline()
-	if err != nil {
-		return 0, err
-	}
-
-	return c.handleJSON(b, &jsonMsg)
-}
-
-func (c *Transport) readJSONWithTimeout(timeout time.Duration, jsonMsg interface{}) (byte, error) {
-	err := c.Conn.SetReadDeadline(time.Now().Add(timeout))
-	if err != nil {
-		return 0, err
-	}
-
-	return c.waitJSON(&jsonMsg)
-}
-
-// func (c *Transport) readJSONEx(timeout time.Duration, jsonMsg interface{}) (byte, error) {
-// 	select {
-// 	case msg <- c.inC:
-// 	case err <- c.errC:
-// 	}
-// }
