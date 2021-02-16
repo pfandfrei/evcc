@@ -121,3 +121,10 @@ func (c *Transport) readJSONWithTimeout(timeout time.Duration, jsonMsg interface
 
 	return c.waitJSON(&jsonMsg)
 }
+
+// func (c *Transport) readJSONEx(timeout time.Duration, jsonMsg interface{}) (byte, error) {
+// 	select {
+// 	case msg <- c.inC:
+// 	case err <- c.errC:
+// 	}
+// }
