@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -45,7 +44,8 @@ func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
 	// add header
 	b := bytes.NewBuffer([]byte{typ})
 
-	_, err = b.WriteString(strconv.Quote(string(msg)))
+	// _, err = b.WriteString(strconv.Quote(string(msg)))
+	_, err = b.Write(msg)
 	if err == nil {
 		err = c.writeBinary(b.Bytes())
 	}
@@ -85,11 +85,12 @@ func (c *Transport) handleJSON(b []byte, jsonMsg interface{}) (byte, error) {
 
 	typ := b[0]
 
-	q, err := strconv.Unquote(string(b[1:]))
-	if err == nil {
-		msg := []byte(q)
-		err = json.Unmarshal(msg, &jsonMsg)
-	}
+	// q, err := strconv.Unquote(string(b[1:]))
+	// if err == nil {
+	// 	msg := []byte(q)
+	// 	err = json.Unmarshal(msg, &jsonMsg)
+	// }
+	err := json.Unmarshal(b[1:], &jsonMsg)
 
 	return typ, err
 }
