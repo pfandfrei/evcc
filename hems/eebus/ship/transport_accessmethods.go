@@ -26,11 +26,7 @@ func (c *Transport) accessMethodsRequest() error {
 // accessMethods
 func (c *Transport) accessMethods() error {
 	req := CmiAccessMethods{
-		AccessMethods: []AccessMethods{
-			{
-				ID: "foo-bar",
-			},
-		},
+		AccessMethods: []AccessMethods{},
 	}
 	if err := c.writeJSON(CmiTypeControl, req); err != nil {
 		return err
