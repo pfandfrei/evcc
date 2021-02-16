@@ -57,7 +57,7 @@ func (c *Client) protocolHandshake() error {
 			{
 				HandshakeType: ProtocolHandshakeTypeAnnounceMax,
 				Version:       []Version{{Major: 1, Minor: 0}},
-				Formats:       []string{ProtocolHandshakeFormatJSON},
+				Formats:       []Format{{Format: ProtocolHandshakeFormatJSON}},
 			},
 		},
 	}

@@ -14,7 +14,7 @@ func (c *Transport) handshakeReceiveSelect() error {
 
 	switch typed := msg.(type) {
 	case MessageProtocolHandshake:
-		if typed.HandshakeType != ProtocolHandshakeTypeSelect || len(typed.Formats) != 1 || typed.Formats[0] != ProtocolHandshakeFormatJSON {
+		if typed.HandshakeType != ProtocolHandshakeTypeSelect || len(typed.Formats) != 1 || typed.Formats[0].Format != ProtocolHandshakeFormatJSON {
 			_ = c.writeJSON(CmiTypeControl, CmiProtocolHandshakeError{
 				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
 			})

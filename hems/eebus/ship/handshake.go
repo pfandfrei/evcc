@@ -32,12 +32,16 @@ type CmiHandshakeMsg struct {
 type MessageProtocolHandshake struct {
 	HandshakeType string    `json:"handshakeType"`
 	Version       []Version `json:"version"`
-	Formats       []string  `json:"formats"`
+	Formats       []Format  `json:"formats"`
 }
 
 type Version struct {
 	Major int `json:"major"`
 	Minor int `json:"minor"`
+}
+
+type Format struct {
+	Format string `json:"format"`
 }
 
 type CmiConnectionPinState struct {

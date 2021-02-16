@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math/rand"
 	"net"
 	"time"
 
@@ -46,6 +45,8 @@ func (c *Transport) writeBinary(msg []byte) error {
 }
 
 func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
+	// time.Sleep(time.Duration(rand.Int31n(int32(time.Second))))
+
 	msg, err := json.Marshal(jsonMsg)
 	if err != nil {
 		return err
