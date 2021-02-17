@@ -245,6 +245,7 @@ func main() {
 	}
 	_ = service
 
+	fmt.Println("announcing id: %s ski: %s", mdnsID, ski)
 	server, err := zeroconf.Register(zeroconfInstance, zeroconfType, zeroconfDomain, serverPort,
 		[]string{"txtvers=1", "id=" + mdnsID, "path=/ship/", "ski=" + ski, "register=true", "brand=evcc", "model=evcc", "type=EnergyManagementSystem"}, nil)
 	if err != nil {
