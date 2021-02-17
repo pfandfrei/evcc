@@ -10,10 +10,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func NewServer(addr string, cert tls.Certificate) (*http.Server, error) {
+func NewServer(addr string, cert tls.Certificate, accessMethod string) (*http.Server, error) {
 	s := &http.Server{
-		Addr:    addr,
-		Handler: &Handler{},
+		Addr: addr,
+		Handler: &Handler{
+			AccessMethod: accessMethod,
+		},
 		TLSConfig: &tls.Config{
 			Certificates: []tls.Certificate{cert},
 			ClientAuth:   tls.NoClientCert,
@@ -30,7 +32,9 @@ func NewServer(addr string, cert tls.Certificate) (*http.Server, error) {
 	return s, nil
 }
 
-type Handler struct{}
+type Handler struct {
+	AccessMethod string
+}
 
 func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	log := log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[server] ", 0)
@@ -61,7 +65,7 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	sc := &ship.Server{
 		Log: log,
 		// LocalPin:      "1122",
-		// AccessMethods: []string{"blablubb"},
+		AccessMethods: []string{s.AccessMethod},
 	}
 
 	if err := sc.Serve(conn); err != nil {

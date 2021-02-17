@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/elliptic"
+	"crypto/hmac"
 	"crypto/sha1"
 	"crypto/tls"
 	"fmt"
@@ -26,6 +27,7 @@ import (
 
 	"github.com/andig/evcc/hems/eebus"
 	"github.com/andig/evcc/hems/eebus/ship"
+	"github.com/denisbrodbeck/machineid"
 	"github.com/gorilla/websocket"
 	"github.com/grandcat/zeroconf"
 )
@@ -187,6 +189,19 @@ const (
 	keyFile    = "evcc.key"
 )
 
+func uniqueID() ([]byte, error) {
+	id, err := machineid.ID()
+	if err != nil {
+		return nil, err
+	}
+
+	mac := hmac.New(sha1.New, []byte(id))
+	mac.Write([]byte(id))
+	sum := mac.Sum(nil)
+
+	return sum[:8], nil
+}
+
 func main() {
 	// Discover all services on the network (e.g. _workstation._tcp)
 	resolver, err := zeroconf.NewResolver(nil)
@@ -218,14 +233,20 @@ func main() {
 	}
 	ski := fmt.Sprintf("%0x", leaf.SubjectKeyId)
 
-	service, err := eebus.NewServer(fmt.Sprintf(":%d", serverPort), cert)
+	id, err := uniqueID()
+	if err != nil {
+		log.Fatalln(err)
+	}
+	mdnsID := fmt.Sprintf("evcc-%0x", id)
+
+	service, err := eebus.NewServer(fmt.Sprintf(":%d", serverPort), cert, mdnsID)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	_ = service
 
 	server, err := zeroconf.Register(zeroconfInstance, zeroconfType, zeroconfDomain, serverPort,
-		[]string{"txtvers=1", "id=evcc-01", "path=/ship/", "ski=" + ski, "register=true", "brand=evcc", "model=evcc", "type=EnergyManagementSystem"}, nil)
+		[]string{"txtvers=1", "id=" + mdnsID, "path=/ship/", "ski=" + ski, "register=true", "brand=evcc", "model=evcc", "type=EnergyManagementSystem"}, nil)
 	if err != nil {
 		log.Fatalln(err)
 	}
