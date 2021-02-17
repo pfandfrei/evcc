@@ -55,10 +55,9 @@ func (c *Server) protocolHandshake() error {
 		return err
 	}
 
-	switch hs := msg.(type) {
+	switch typed := msg.(type) {
 	case MessageProtocolHandshake:
-		if hs.HandshakeType.HandshakeType != ProtocolHandshakeTypeAnnounceMax ||
-			len(hs.Formats) != 1 || hs.Formats[0].Format != ProtocolHandshakeFormatJSON {
+		if typed.HandshakeType.HandshakeType != ProtocolHandshakeTypeAnnounceMax || !typed.Formats.Supports(ProtocolHandshakeFormatJSON) {
 			msg := CmiProtocolHandshakeError{
 				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
 			}
@@ -69,9 +68,9 @@ func (c *Server) protocolHandshake() error {
 		}
 
 		// send selection to client
-		hs.HandshakeType.HandshakeType = ProtocolHandshakeTypeSelect
+		typed.HandshakeType.HandshakeType = ProtocolHandshakeTypeSelect
 		err = c.writeJSON(CmiTypeControl, CmiHandshakeMsg{
-			MessageProtocolHandshake: []MessageProtocolHandshake{hs},
+			MessageProtocolHandshake: []MessageProtocolHandshake{typed},
 		})
 
 	default:
