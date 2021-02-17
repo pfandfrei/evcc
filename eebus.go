@@ -203,14 +203,7 @@ func uniqueID() ([]byte, error) {
 }
 
 func main() {
-	// Discover all services on the network (e.g. _workstation._tcp)
-	resolver, err := zeroconf.NewResolver(nil)
-	if err != nil {
-		log.Fatalln("Failed to initialize resolver:", err.Error())
-	}
-
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
-	// err = os.ErrNotExist
 	if err != nil {
 		if os.IsNotExist(err) {
 			if cert, err = createCertificate(true, zeroconfInstance); err == nil {
@@ -229,27 +222,35 @@ func main() {
 	// have certificate now
 	leaf, err := x509.ParseCertificate(cert.Certificate[0])
 	if err != nil {
-		log.Fatalln("failed parsing certificate:", err.Error())
+		log.Fatal("failed parsing certificate:", err.Error())
 	}
 	ski := fmt.Sprintf("%0x", leaf.SubjectKeyId)
 
 	id, err := uniqueID()
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	mdnsID := fmt.Sprintf("evcc-%0x", id)
 
 	service, err := eebus.NewServer(fmt.Sprintf(":%d", serverPort), cert, mdnsID)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal(err)
 	}
 	_ = service
 
-	fmt.Printf("announcing id: %s ski: %s\n", mdnsID, ski)
-	server, err := zeroconf.Register(zeroconfInstance, zeroconfType, zeroconfDomain, serverPort,
-		[]string{"txtvers=1", "id=" + mdnsID, "path=/ship/", "ski=" + ski, "register=true", "brand=evcc", "model=evcc", "type=EnergyManagementSystem"}, nil)
+	log.Printf("mDNS: announcing id: %s ski: %s", mdnsID, ski)
+
+	// Discover all services on the network (e.g. _workstation._tcp)
+	resolver, err := zeroconf.NewResolver(nil)
 	if err != nil {
-		log.Fatalln(err)
+		log.Fatal("mDNS: failed initializing resolver:", err)
+	}
+
+	server, err := zeroconf.Register(zeroconfInstance, zeroconfType, zeroconfDomain, serverPort, []string{
+		"txtvers=1", "id=" + mdnsID, "path=/ship/", "ski=" + ski, "register=true", "brand=evcc", "model=evcc", "type=EnergyManagementSystem",
+	}, nil)
+	if err != nil {
+		log.Fatal("mDNS: failed registering service:", err)
 	}
 	defer server.Shutdown()
 
@@ -260,15 +261,16 @@ func main() {
 	defer cancel()
 
 	if err = resolver.Browse(ctx, zeroconfType, zeroconfDomain, entries); err != nil {
-		log.Fatalln("failed to browse:", err.Error())
+		log.Fatal("failed to browse:", err.Error())
 	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for range c {
-			log.Println("mdns: shutdown")
+			log.Println("mDNS: shutdown")
 			server.Shutdown()
+			cancel()
 			os.Exit(0)
 		}
 	}()
