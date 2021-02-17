@@ -45,7 +45,7 @@ func discoverDNS(results <-chan *zeroconf.ServiceEntry) {
 			continue
 		}
 
-		log.Println("mdns:", entry.HostName, entry.ServiceName(), entry.Text)
+		log.Println("mDNS:", entry.HostName, entry.ServiceName(), entry.Text)
 	}
 }
 
