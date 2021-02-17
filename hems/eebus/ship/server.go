@@ -1,7 +1,6 @@
 package ship
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -16,30 +15,6 @@ type Server struct {
 	AccessMethods       []string
 	*Transport
 	Handler func(req interface{}) error
-}
-
-func (c *Server) log() Logger {
-	if c.Log == nil {
-		return &NopLogger{}
-	}
-	return c.Log
-}
-
-func (c *Server) init() error {
-	init := []byte{CmiTypeInit, 0x00}
-
-	// CMI_STATE_CLIENT_EVALUATE
-	msg, err := c.readBinary()
-	if err != nil {
-		return err
-	}
-
-	if bytes.Compare(init, msg) != 0 {
-		return fmt.Errorf("init: invalid response: %0 x", msg)
-	}
-
-	// CMI_STATE_CLIENT_SEND
-	return c.writeBinary(init)
 }
 
 func (c *Server) protocolHandshake() error {
@@ -92,20 +67,11 @@ func (c *Server) Close() error {
 
 // Serve performs the server connection handshake
 func (c *Server) Serve(conn *websocket.Conn) error {
-	c.Transport = &Transport{
-		Conn:   conn,
-		Log:    c.log(),
-		inC:    make(chan []byte, 1),
-		errC:   make(chan error, 1),
-		closeC: make(chan struct{}, 1),
-	}
+	c.Transport = NewTransport(c.Log, conn)
 
 	if err := c.init(); err != nil {
 		return err
 	}
-
-	// start consuming messages
-	go c.readPump()
 
 	err := c.hello()
 	if err == nil {

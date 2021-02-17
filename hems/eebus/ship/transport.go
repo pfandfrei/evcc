@@ -18,35 +18,179 @@ var ErrTimeout = errors.New("timeout")
 
 // Transport is the physical transport layer
 type Transport struct {
-	Conn *websocket.Conn
-	Log  Logger
+	conn   *websocket.Conn
+	logger Logger
 
-	phase  byte
-	inC    chan []byte
-	errC   chan error
-	closeC chan struct{}
+	recv    chan []byte
+	recvErr chan error
+	send    chan []byte
+	sendErr chan error
+	closeC  chan struct{}
+}
+
+const (
+	// Time allowed to write a message to the peer.
+	writeWait = 10 * time.Second
+
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
+)
+
+func NewTransport(log Logger, conn *websocket.Conn) *Transport {
+	t := &Transport{
+		conn:    conn,
+		logger:  log,
+		send:    make(chan []byte, 1),
+		recv:    make(chan []byte, 1),
+		sendErr: make(chan error, 1),
+		recvErr: make(chan error, 1),
+		closeC:  make(chan struct{}),
+	}
+
+	go t.readPump()
+	go t.writePump()
+
+	return t
 }
 
 func (c *Transport) log() Logger {
-	return c.Log
+	if c.logger == nil {
+		return &NopLogger{}
+	}
+	return c.logger
+}
+
+func (c *Transport) readPump() {
+	defer func() {
+		c.conn.Close()
+	}()
+
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
+	for {
+		select {
+		case <-c.closeC:
+			return
+
+		default:
+			typ, b, err := c.conn.ReadMessage()
+			if err == nil {
+				if len(b) > 2 {
+					c.log().Println("recv:", string(b))
+				}
+
+				if typ != websocket.BinaryMessage {
+					err = fmt.Errorf("invalid message type: %d", typ)
+				}
+			}
+
+			if err == nil {
+				c.recv <- b
+			} else {
+				c.recvErr <- err
+			}
+		}
+	}
+}
+
+func (c *Transport) readBinary(timerC <-chan time.Time) ([]byte, error) {
+	select {
+	case <-timerC:
+		return nil, ErrTimeout
+
+	case <-c.closeC:
+		return nil, net.ErrClosed
+
+	case b := <-c.recv:
+		return b, nil
+
+	case err := <-c.recvErr:
+		return nil, err
+	}
+}
+
+func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
+	select {
+	case <-timerC:
+		return nil, ErrTimeout
+
+	case <-c.closeC:
+		return nil, net.ErrClosed
+
+	case b := <-c.recv:
+		if len(b) < 2 {
+			return nil, errors.New("invalid length")
+		}
+		if b[0] < 1 {
+			return nil, errors.New("invalid phase")
+		}
+
+		return decodeMessage(b[1:])
+
+	case err := <-c.recvErr:
+		return nil, err
+	}
+}
+
+// writePump pumps messages from the hub to the websocket connection.
+//
+// A goroutine running writePump is started for each connection. The
+// application ensures that there is at most one writer to a connection by
+// executing all writes from this goroutine.
+func (c *Transport) writePump() {
+	ticker := time.NewTicker(pingPeriod)
+
+	defer func() {
+		ticker.Stop()
+		c.conn.Close()
+	}()
+
+	for {
+		select {
+		case msg, ok := <-c.send:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if !ok {
+				// The hub closed the channel.
+				c.conn.WriteMessage(websocket.CloseMessage, []byte{})
+				return
+			}
+
+			err := c.conn.WriteMessage(websocket.BinaryMessage, msg)
+			c.sendErr <- err
+
+		case <-ticker.C:
+			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
+				return
+			}
+		}
+	}
 }
 
 func (c *Transport) writeBinary(msg []byte) error {
-	if len(msg) > 2 {
-		c.log().Println("send:", string(msg))
-	}
+	c.send <- msg
 
-	err := c.Conn.SetWriteDeadline(time.Now().Add(cmiReadWriteTimeout))
-	if err == nil {
-		err = c.Conn.WriteMessage(websocket.BinaryMessage, msg)
-	}
+	timer := time.NewTimer(10 * time.Second)
+	select {
+	case <-timer.C:
+		return ErrTimeout
 
-	return err
+	case <-c.closeC:
+		return net.ErrClosed
+
+	case err := <-c.sendErr:
+		return err
+	}
 }
 
 func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
-	// time.Sleep(time.Duration(rand.Int31n(int32(time.Second))))
-
 	msg, err := json.Marshal(jsonMsg)
 	if err != nil {
 		return err
@@ -59,70 +203,6 @@ func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
 	}
 
 	return err
-}
-
-func (c *Transport) readBinaryNoDeadline() ([]byte, error) {
-	typ, msg, err := c.Conn.ReadMessage()
-
-	if err == nil {
-		if len(msg) > 2 {
-			c.log().Println("recv:", string(msg))
-		}
-
-		if typ != websocket.BinaryMessage {
-			err = fmt.Errorf("invalid message type: %d", typ)
-		}
-	}
-
-	return msg, err
-}
-
-func (c *Transport) readBinary() ([]byte, error) {
-	err := c.Conn.SetReadDeadline(time.Now().Add(cmiReadWriteTimeout))
-	if err != nil {
-		return nil, err
-	}
-
-	return c.readBinaryNoDeadline()
-}
-
-func (c *Transport) readPump() {
-	for {
-		select {
-		case <-c.closeC:
-			return
-
-		default:
-			if b, err := c.readBinaryNoDeadline(); err != nil {
-				c.errC <- err
-			} else {
-				c.inC <- b
-			}
-		}
-	}
-}
-
-func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
-	select {
-	case <-timerC:
-		return nil, ErrTimeout
-
-	case <-c.closeC:
-		return nil, net.ErrClosed
-
-	case b := <-c.inC:
-		if len(b) < 2 {
-			return nil, errors.New("invalid length")
-		}
-		if b[0] < 1 {
-			return nil, errors.New("invalid phase")
-		}
-
-		return decodeMessage(b[1:])
-
-	case err := <-c.errC:
-		return nil, err
-	}
 }
 
 func decodeMessage(b []byte) (interface{}, error) {

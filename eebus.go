@@ -36,6 +36,17 @@ const (
 	zeroconfInstance = "evcc"
 )
 
+func discoverDNS(results <-chan *zeroconf.ServiceEntry) {
+	for entry := range results {
+		if entry.Instance == zeroconfInstance {
+			connectService(entry)
+			continue
+		}
+
+		log.Println("mdns:", entry.HostName, entry.ServiceName(), entry.Text)
+	}
+}
+
 func connectService(entry *zeroconf.ServiceEntry) {
 	ss, err := eebus.NewFromDNSEntry(entry)
 	if err == nil {
@@ -48,17 +59,6 @@ func connectService(entry *zeroconf.ServiceEntry) {
 	}
 
 	log.Printf("%s: client done: %v", entry.HostName, err)
-}
-
-func discoverDNS(results <-chan *zeroconf.ServiceEntry) {
-	for entry := range results {
-		if entry.Instance == zeroconfInstance {
-			connectService(entry)
-			continue
-		}
-
-		log.Println("mdns:", entry.HostName, entry.ServiceName(), entry.Text)
-	}
 }
 
 func publicKey(priv interface{}) interface{} {

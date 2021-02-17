@@ -1,7 +1,6 @@
 package ship
 
 import (
-	"bytes"
 	"fmt"
 	"os"
 	"sync"
@@ -17,38 +16,6 @@ type Client struct {
 	AccessMethods       []string
 	*Transport
 	closed bool
-	send   <-chan interface{}
-}
-
-func (c *Client) log() Logger {
-	if c.Log == nil {
-		return &NopLogger{}
-	}
-	return c.Log
-}
-
-func (c *Client) init() error {
-	init := []byte{CmiTypeInit, 0x00}
-
-	// CMI_STATE_CLIENT_SEND
-	if err := c.writeBinary(init); err != nil {
-		return err
-	}
-
-	// CMI_STATE_CLIENT_EVALUATE
-	msg, err := c.readBinary()
-	if err != nil {
-		return err
-	}
-
-	if bytes.Compare(init, msg) != 0 {
-		return fmt.Errorf("init: invalid response: %0 x", msg)
-	}
-
-	// move to control phase
-	c.phase = CmiTypeControl
-
-	return nil
 }
 
 func (c *Client) protocolHandshake() error {
@@ -86,25 +53,22 @@ func (c *Client) Close() error {
 
 	c.closed = true
 
+	// stop readPump
+	defer close(c.closeC)
+
 	return c.close()
 }
 
 // Connect performs the client connection handshake
 func (c *Client) Connect(conn *websocket.Conn) error {
-	c.Transport = &Transport{
-		Conn:   conn,
-		Log:    c.log(),
-		inC:    make(chan []byte, 1),
-		errC:   make(chan error, 1),
-		closeC: make(chan struct{}, 1),
-	}
+	c.Transport = NewTransport(c.Log, conn)
 
 	if err := c.init(); err != nil {
 		return err
 	}
 
-	// start consuming messages
-	go c.readPump()
+	// // start consuming messages
+	// go c.readPump()
 
 	err := c.hello()
 	if err == nil {
