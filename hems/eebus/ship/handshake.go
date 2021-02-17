@@ -73,7 +73,7 @@ func (h CmiHandshakeMsg) MarshalJSON() ([]byte, error) {
 				h.MessageProtocolHandshake[0].Version,
 			},
 			struct {
-				Formats []Format `json:"format"`
+				Formats []Format `json:"formats"`
 			}{
 				h.MessageProtocolHandshake[0].Formats,
 			},
@@ -101,9 +101,9 @@ func (hs *MessageProtocolHandshake) UnmarshalJSON(b []byte) error {
 		}
 	}
 	if err == nil && len(wrapper) > 2 {
-		var v struct{ Format Formats }
+		var v struct{ Formats Formats }
 		if err = json.Unmarshal(wrapper[2], &v); err == nil {
-			hs.Formats = v.Format
+			hs.Formats = v.Formats
 		}
 	}
 
