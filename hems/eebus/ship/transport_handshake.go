@@ -19,12 +19,17 @@ func (c *Transport) handshakeReceiveSelect() error {
 				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
 			})
 
-			return errors.New("handshake: invalid format")
+			err = errors.New("handshake: invalid format")
 		}
 
 		return nil
 
+	case ConnectionClose:
+		err = errors.New("handshake: remote closed")
+
 	default:
-		return errors.New("handshake: invalid type")
+		err = errors.New("handshake: invalid type")
 	}
+
+	return err
 }

@@ -6,7 +6,7 @@ import (
 )
 
 // accessMethodsRequest
-func (c *Transport) accessMethods(methods []string) error {
+func (c *Transport) accessMethods(methods []string) ([]string, error) {
 	err := c.writeJSON(CmiTypeControl, CmiAccessMethodsRequest{
 		AccessMethodsRequest: []AccessMethodsRequest{},
 	})
@@ -14,15 +14,14 @@ func (c *Transport) accessMethods(methods []string) error {
 	for err == nil {
 		timer := time.NewTimer(cmiReadWriteTimeout)
 		msg, err := c.readMessage(timer.C)
-
 		if err != nil {
 			break
 		}
 
-		switch msg.(type) {
+		switch typed := msg.(type) {
 		case AccessMethods:
 			// access methods received
-			return nil
+			return []string{typed.ID}, nil
 
 		case AccessMethodsRequest:
 			am := make([]AccessMethods, 0, len(methods))
@@ -38,5 +37,5 @@ func (c *Transport) accessMethods(methods []string) error {
 		}
 	}
 
-	return err
+	return nil, err
 }

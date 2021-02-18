@@ -23,28 +23,35 @@ func (c *Transport) readPinState() (ConnectionPinState, error) {
 	}
 }
 
+const (
+	pinReceived = 1 << iota
+	pinSent
+
+	pinCompleted = pinReceived | pinSent
+)
+
 func (c *Transport) pinState(local, remote string) error {
-	pinState := PinStateNone
-	var inputPermission string
+	pinState := ConnectionPinState{
+		PinState: PinStateNone,
+	}
+
+	var status int
 	if local != "" {
-		pinState = PinStateRequired
-		inputPermission = PinInputPermissionOk
+		pinState.PinState = PinStateRequired
+		pinState.InputPermission = PinInputPermissionOk
+	} else {
+		// always received if not necessary
+		status |= pinReceived
 	}
 
 	err := c.writeJSON(CmiTypeControl, CmiConnectionPinState{
-		ConnectionPinState: []ConnectionPinState{
-			{
-				PinState:        pinState,
-				InputPermission: inputPermission,
-			},
-		},
+		ConnectionPinState: []ConnectionPinState{pinState},
 	})
 
-	var pinEntered string
 	timer := time.NewTimer(10 * time.Second)
-
-	for err == nil && local != pinEntered {
-		msg, err := c.readMessage(timer.C)
+	for err == nil && status != pinCompleted {
+		var msg interface{}
+		msg, err = c.readMessage(timer.C)
 		if err != nil {
 			break
 		}
@@ -52,8 +59,6 @@ func (c *Transport) pinState(local, remote string) error {
 		switch typed := msg.(type) {
 		// local pin
 		case ConnectionPinInput:
-			pinEntered = typed.Pin
-
 			// signal error to client
 			if typed.Pin != local {
 				err = c.writeJSON(CmiTypeControl, CmiConnectionPinError{
@@ -63,14 +68,32 @@ func (c *Transport) pinState(local, remote string) error {
 				})
 			}
 
+			status |= pinReceived
+
 		// remote pin
-		// case ConnectionPinState:
+		case ConnectionPinState:
+			if typed.PinState == PinStateOptional || typed.PinState == PinStateRequired {
+				if remote != "" {
+					err = c.writeJSON(CmiTypeControl, CmiConnectionPinInput{
+						ConnectionPinInput: []ConnectionPinInput{
+							{Pin: remote},
+						},
+					})
+				} else {
+					err = errors.New("pin: remote pin required")
+				}
+			}
+
+			status |= pinSent
 
 		case ConnectionPinError:
 			err = errors.New("pin: remote pin mismatched")
 
+		case ConnectionClose:
+			err = errors.New("pin: remote closed")
+
 		default:
-			return errors.New("pin: invalid type")
+			err = errors.New("pin: invalid type")
 		}
 	}
 

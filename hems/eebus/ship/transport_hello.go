@@ -46,6 +46,9 @@ func (c *Transport) hello() error {
 				}
 			}
 
+		case ConnectionClose:
+			err = errors.New("hello: remote closed")
+
 		default:
 			return errors.New("hello: invalid type")
 		}

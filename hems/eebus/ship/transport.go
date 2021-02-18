@@ -39,6 +39,7 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 )
 
+// NewTransport creates SHIP transport on given websocket connection
 func NewTransport(log Logger, conn *websocket.Conn) *Transport {
 	t := &Transport{
 		conn:    conn,

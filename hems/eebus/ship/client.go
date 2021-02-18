@@ -10,10 +10,10 @@ import (
 
 // Client is the ship client
 type Client struct {
-	mux                 sync.Mutex
-	Log                 Logger
-	LocalPin, RemotePin string
-	AccessMethods       []string
+	mux    sync.Mutex
+	Log    Logger
+	Local  Service
+	Remote Service
 	*Transport
 	closed bool
 }
@@ -67,18 +67,15 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 		return err
 	}
 
-	// // start consuming messages
-	// go c.readPump()
-
 	err := c.hello()
 	if err == nil {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState(c.LocalPin, c.RemotePin)
+		err = c.pinState(c.Local.Pin, c.Remote.Pin)
 	}
 	if err == nil {
-		err = c.accessMethods(c.AccessMethods)
+		c.Remote.Methods, err = c.accessMethods(c.Local.Methods)
 	}
 
 	// close connection if handshake or hello fails

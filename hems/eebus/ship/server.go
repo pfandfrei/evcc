@@ -10,9 +10,9 @@ import (
 
 // Server is the SHIP server
 type Server struct {
-	Log                 Logger
-	LocalPin, RemotePin string
-	AccessMethods       []string
+	Log    Logger
+	Local  Service
+	Remote Service
 	*Transport
 	Handler func(req interface{}) error
 }
@@ -78,10 +78,10 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState(c.LocalPin, c.RemotePin)
+		err = c.pinState(c.Local.Pin, c.Remote.Pin)
 	}
 	if err == nil {
-		err = c.accessMethods(c.AccessMethods)
+		c.Remote.Methods, err = c.accessMethods(c.Local.Methods)
 	}
 
 	for err == nil {
