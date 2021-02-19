@@ -1,9 +1,11 @@
 package ship
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
 	"github.com/andig/evcc/hems/eebus/ship/transport"
@@ -21,12 +23,37 @@ type Client struct {
 	closed bool
 }
 
+// init creates the connection
+func (c *Client) init() error {
+	init := []byte{message.CmiTypeInit, 0x00}
+
+	// CMI_STATE_CLIENT_SEND
+	if err := c.t.WriteBinary(init); err != nil {
+		return err
+	}
+
+	timer := time.NewTimer(message.CmiTimeout)
+
+	// CMI_STATE_CLIENT_WAIT
+	msg, err := c.t.ReadBinary(timer.C)
+	if err != nil {
+		return err
+	}
+
+	// CMI_STATE_CLIENT_EVALUATE
+	if bytes.Compare(init, msg) != 0 {
+		return fmt.Errorf("init: invalid response")
+	}
+
+	return nil
+}
+
 func (c *Client) protocolHandshake() error {
 	hs := message.CmiHandshakeMsg{
-		message.MessageProtocolHandshake{
+		MessageProtocolHandshake: message.MessageProtocolHandshake{
 			HandshakeType: message.ProtocolHandshakeTypeAnnounceMax,
 			Version:       message.Version{Major: 1, Minor: 0},
-			Formats:       message.Format{[]string{message.ProtocolHandshakeFormatJSON}},
+			Formats:       message.Format{Format: []string{message.ProtocolHandshakeFormatJSON}},
 		},
 	}
 	if err := c.t.WriteJSON(message.CmiTypeControl, hs); err != nil {
@@ -64,7 +91,7 @@ func (c *Client) Close() error {
 func (c *Client) Connect(conn *websocket.Conn) error {
 	c.t = transport.New(c.Log, conn)
 
-	if err := c.t.Init(); err != nil {
+	if err := c.init(); err != nil {
 		return err
 	}
 

@@ -5,6 +5,8 @@ import "github.com/andig/evcc/hems/eebus/util"
 // data constants
 const (
 	CmiTypeData byte = 2
+
+	ProtocolID = "ee1.0"
 )
 
 type CmiData struct {

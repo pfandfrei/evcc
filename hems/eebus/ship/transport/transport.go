@@ -103,6 +103,7 @@ func (c *Transport) readPump() {
 	}
 }
 
+// ReadBinary reads binary message
 func (c *Transport) ReadBinary(timerC <-chan time.Time) ([]byte, error) {
 	select {
 	case <-timerC:
@@ -119,6 +120,7 @@ func (c *Transport) ReadBinary(timerC <-chan time.Time) ([]byte, error) {
 	}
 }
 
+// ReadMessage reads JSON message
 func (c *Transport) ReadMessage(timerC <-chan time.Time) (interface{}, error) {
 	select {
 	case <-timerC:
@@ -177,6 +179,7 @@ func (c *Transport) writePump() {
 	}
 }
 
+// WriteBinary writes binary message
 func (c *Transport) WriteBinary(msg []byte) error {
 	c.send <- msg
 
@@ -193,6 +196,7 @@ func (c *Transport) WriteBinary(msg []byte) error {
 	}
 }
 
+// WriteJSON writes JSON message
 func (c *Transport) WriteJSON(typ byte, jsonMsg interface{}) error {
 	msg, err := json.Marshal(jsonMsg)
 	if err != nil {

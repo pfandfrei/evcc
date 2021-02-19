@@ -32,6 +32,7 @@ const (
 	pinCompleted = pinReceived | pinSent
 )
 
+// PinState handles pin exchange
 func (c *Transport) PinState(local, remote string) error {
 	pinState := message.ConnectionPinState{
 		PinState: message.PinStateNone,
@@ -64,7 +65,7 @@ func (c *Transport) PinState(local, remote string) error {
 			// signal error to client
 			if typed.Pin != local {
 				err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinError{
-					message.ConnectionPinError{Error: 1},
+					ConnectionPinError: message.ConnectionPinError{Error: 1},
 				})
 			}
 
@@ -75,7 +76,7 @@ func (c *Transport) PinState(local, remote string) error {
 			if typed.PinState == message.PinStateOptional || typed.PinState == message.PinStateRequired {
 				if remote != "" {
 					err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinInput{
-						message.ConnectionPinInput{Pin: remote},
+						ConnectionPinInput: message.ConnectionPinInput{Pin: remote},
 					})
 				} else {
 					err = errors.New("pin: remote pin required")

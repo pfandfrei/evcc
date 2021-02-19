@@ -8,23 +8,26 @@ import (
 	"github.com/andig/evcc/hems/eebus/ship/message"
 )
 
-// hello is the common hello exchange
+// Hello is the common hello exchange
 func (c *Transport) Hello() error {
+	// SME_HELLO_STATE_READY_INIT
 	if err := c.WriteJSON(message.CmiTypeControl, message.CmiHelloMsg{
-		message.ConnectionHello{
+		ConnectionHello: message.ConnectionHello{
 			Phase: message.CmiHelloPhaseReady,
 		},
 	}); err != nil {
 		return fmt.Errorf("hello: %w", err)
 	}
 
-	timer := time.NewTimer(message.CmiHelloInitTimeout)
+	timer := time.NewTimer(message.CmiTimeout)
 	for {
+		// SME_HELLO_STATE_READY_LISTEN
 		msg, err := c.ReadMessage(timer.C)
 		if err != nil {
 			if errors.Is(err, ErrTimeout) {
+				// SME_HELLO_STATE_READY_TIMEOUT
 				_ = c.WriteJSON(message.CmiTypeControl, message.CmiHelloMsg{
-					message.ConnectionHello{
+					ConnectionHello: message.ConnectionHello{
 						Phase: message.CmiHelloPhaseAborted,
 					},
 				})
@@ -37,6 +40,7 @@ func (c *Transport) Hello() error {
 		case message.ConnectionHello:
 			switch hello.Phase {
 			case message.CmiHelloPhaseReady:
+				// HELLO_OK
 				return nil
 
 			case message.CmiHelloPhaseAborted:

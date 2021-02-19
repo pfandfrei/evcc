@@ -10,7 +10,7 @@ import (
 const (
 	CmiTypeInit byte = 0
 
-	CmiHelloInitTimeout         = 60 * time.Second
+	CmiTimeout                  = 60 * time.Second
 	CmiHelloProlongationTimeout = 30 * time.Second
 
 	CmiHelloPhasePending = "pending"

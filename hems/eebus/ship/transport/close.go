@@ -7,19 +7,19 @@ import (
 	"github.com/andig/evcc/hems/eebus/ship/message"
 )
 
-// Close closes the service connection
+// AcceptClose accepts connection close
 func (c *Transport) AcceptClose() error {
 	return c.WriteJSON(message.CmiTypeEnd, message.CmiCloseMsg{
-		message.ConnectionClose{
+		ConnectionClose: message.ConnectionClose{
 			Phase: message.CmiClosePhaseConfirm,
 		},
 	})
 }
 
-// Close closes the service connection
+// Close closes the connection
 func (c *Transport) Close() error {
 	err := c.WriteJSON(message.CmiTypeEnd, message.CmiCloseMsg{
-		message.ConnectionClose{
+		ConnectionClose: message.ConnectionClose{
 			Phase:   message.CmiClosePhaseAnnounce,
 			MaxTime: int(message.CmiCloseTimeout / time.Millisecond),
 		},

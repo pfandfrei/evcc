@@ -1,6 +1,7 @@
 package ship
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"time"
@@ -18,6 +19,25 @@ type Server struct {
 	Remote  Service
 	t       *transport.Transport
 	Handler func(req interface{}) error
+}
+
+// Init creates the connection
+func (c *Server) init() error {
+	timer := time.NewTimer(message.CmiTimeout)
+
+	// CMI_STATE_SERVER_WAIT
+	msg, err := c.t.ReadBinary(timer.C)
+	if err != nil {
+		return err
+	}
+
+	// CMI_STATE_SERVER_EVALUATE
+	init := []byte{message.CmiTypeInit, 0x00}
+	if bytes.Compare(init, msg) != 0 {
+		return fmt.Errorf("init: invalid response")
+	}
+
+	return c.t.WriteBinary(init)
 }
 
 func (c *Server) protocolHandshake() error {
@@ -48,7 +68,7 @@ func (c *Server) protocolHandshake() error {
 		// send selection to client
 		typed.HandshakeType = message.ProtocolHandshakeTypeSelect
 		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiHandshakeMsg{
-			typed,
+			MessageProtocolHandshake: typed,
 		})
 
 	default:
@@ -72,11 +92,13 @@ func (c *Server) Close() error {
 func (c *Server) Serve(conn *websocket.Conn) error {
 	c.t = transport.New(c.Log, conn)
 
-	if err := c.t.Init(); err != nil {
+	if err := c.init(); err != nil {
 		return err
 	}
 
+	// CMI_STATE_DATA_PREPARATION
 	err := c.t.Hello()
+
 	if err == nil {
 		err = c.protocolHandshake()
 	}

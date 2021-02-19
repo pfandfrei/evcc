@@ -7,6 +7,7 @@ import (
 	"github.com/andig/evcc/hems/eebus/ship/message"
 )
 
+// HandshakeReceiveSelect receives handshake
 func (c *Transport) HandshakeReceiveSelect() error {
 	timer := time.NewTimer(CmiReadWriteTimeout)
 	msg, err := c.ReadMessage(timer.C)
