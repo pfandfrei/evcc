@@ -5,38 +5,39 @@ import (
 	"os"
 	"sync"
 
+	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/transport"
+	"github.com/andig/evcc/hems/eebus/util"
 	"github.com/gorilla/websocket"
 )
 
 // Client is the ship client
 type Client struct {
 	mux    sync.Mutex
-	Log    Logger
+	Log    util.Logger
 	Local  Service
 	Remote Service
-	*Transport
+	t      *transport.Transport
 	closed bool
 }
 
 func (c *Client) protocolHandshake() error {
-	hs := CmiHandshakeMsg{
-		MessageProtocolHandshake: []MessageProtocolHandshake{
-			{
-				HandshakeType: HandshakeType{ProtocolHandshakeTypeAnnounceMax},
-				Version:       Version{Major: 1, Minor: 0},
-				Formats:       []Format{{[]string{ProtocolHandshakeFormatJSON}}},
-			},
+	hs := message.CmiHandshakeMsg{
+		message.MessageProtocolHandshake{
+			HandshakeType: message.ProtocolHandshakeTypeAnnounceMax,
+			Version:       message.Version{Major: 1, Minor: 0},
+			Formats:       message.Format{[]string{message.ProtocolHandshakeFormatJSON}},
 		},
 	}
-	if err := c.writeJSON(CmiTypeControl, hs); err != nil {
+	if err := c.t.WriteJSON(message.CmiTypeControl, hs); err != nil {
 		return fmt.Errorf("handshake: %w", err)
 	}
 
 	// receive server selection and send selection back to server
-	err := c.handshakeReceiveSelect()
+	err := c.t.HandshakeReceiveSelect()
 	if err == nil {
-		hs.MessageProtocolHandshake[0].HandshakeType.HandshakeType = ProtocolHandshakeTypeSelect
-		err = c.writeJSON(CmiTypeControl, hs)
+		hs.MessageProtocolHandshake.HandshakeType = message.ProtocolHandshakeTypeSelect
+		err = c.t.WriteJSON(message.CmiTypeControl, hs)
 	}
 
 	return err
@@ -54,61 +55,34 @@ func (c *Client) Close() error {
 	c.closed = true
 
 	// stop readPump
-	defer close(c.closeC)
+	// defer close(c.closeC)
 
-	return c.close()
+	return c.t.Close()
 }
 
 // Connect performs the client connection handshake
 func (c *Client) Connect(conn *websocket.Conn) error {
-	c.Transport = NewTransport(c.Log, conn)
+	c.t = transport.New(c.Log, conn)
 
-	if err := c.init(); err != nil {
+	if err := c.t.Init(); err != nil {
 		return err
 	}
 
-	err := c.hello()
+	err := c.t.Hello()
 	if err == nil {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState(c.Local.Pin, c.Remote.Pin)
+		err = c.t.PinState(c.Local.Pin, c.Remote.Pin)
 	}
 	if err == nil {
-		c.Remote.Methods, err = c.accessMethods(c.Local.Methods)
+		c.Remote.Methods, err = c.t.AccessMethodsRequest(c.Local.Methods)
 	}
 
 	// close connection if handshake or hello fails
 	if err != nil {
-		_ = c.Close()
+		_ = c.t.Close()
 	}
 
 	return err
 }
-
-// func (c *Client) Write(req interface{}) error {
-// 	c.mux.Lock()
-// 	defer c.mux.Unlock()
-
-// 	if c.closed {
-// 		return os.ErrClosed
-// 	}
-
-// 	return c.writeJSON(CmiTypeData, req)
-// }
-
-// func (c *Client) Read(res interface{}) error {
-// 	c.mux.Lock()
-// 	defer c.mux.Unlock()
-
-// 	if c.closed {
-// 		return os.ErrClosed
-// 	}
-
-// 	typ, err := c.readJSON(&res)
-// 	if err == nil && typ != CmiTypeData {
-// 		err = fmt.Errorf("read: invalid type: %0x", typ)
-// 	}
-
-// 	return err
-// }

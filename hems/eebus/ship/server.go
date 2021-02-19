@@ -5,25 +5,28 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/transport"
+	"github.com/andig/evcc/hems/eebus/util"
 	"github.com/gorilla/websocket"
 )
 
 // Server is the SHIP server
 type Server struct {
-	Log    Logger
-	Local  Service
-	Remote Service
-	*Transport
+	Log     util.Logger
+	Local   Service
+	Remote  Service
+	t       *transport.Transport
 	Handler func(req interface{}) error
 }
 
 func (c *Server) protocolHandshake() error {
-	timer := time.NewTimer(cmiReadWriteTimeout)
-	msg, err := c.readMessage(timer.C)
+	timer := time.NewTimer(transport.CmiReadWriteTimeout)
+	msg, err := c.t.ReadMessage(timer.C)
 	if err != nil {
-		if errors.Is(err, ErrTimeout) {
-			_ = c.writeJSON(CmiTypeControl, CmiProtocolHandshakeError{
-				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
+		if errors.Is(err, transport.ErrTimeout) {
+			_ = c.t.WriteJSON(message.CmiTypeControl, message.CmiProtocolHandshakeError{
+				Error: message.CmiProtocolHandshakeErrorUnexpectedMessage,
 			})
 		}
 
@@ -31,21 +34,21 @@ func (c *Server) protocolHandshake() error {
 	}
 
 	switch typed := msg.(type) {
-	case MessageProtocolHandshake:
-		if typed.HandshakeType.HandshakeType != ProtocolHandshakeTypeAnnounceMax || !typed.Formats.Supports(ProtocolHandshakeFormatJSON) {
-			msg := CmiProtocolHandshakeError{
-				Error: CmiProtocolHandshakeErrorUnexpectedMessage,
+	case message.MessageProtocolHandshake:
+		if typed.HandshakeType != message.ProtocolHandshakeTypeAnnounceMax || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
+			msg := message.CmiProtocolHandshakeError{
+				Error: message.CmiProtocolHandshakeErrorUnexpectedMessage,
 			}
 
-			_ = c.writeJSON(CmiTypeControl, msg)
+			_ = c.t.WriteJSON(message.CmiTypeControl, msg)
 			err = errors.New("handshake: invalid response")
 			break
 		}
 
 		// send selection to client
-		typed.HandshakeType.HandshakeType = ProtocolHandshakeTypeSelect
-		err = c.writeJSON(CmiTypeControl, CmiHandshakeMsg{
-			MessageProtocolHandshake: []MessageProtocolHandshake{typed},
+		typed.HandshakeType = message.ProtocolHandshakeTypeSelect
+		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiHandshakeMsg{
+			typed,
 		})
 
 	default:
@@ -54,7 +57,7 @@ func (c *Server) protocolHandshake() error {
 
 	// receive selection back from client
 	if err == nil {
-		err = c.handshakeReceiveSelect()
+		err = c.t.HandshakeReceiveSelect()
 	}
 
 	return err
@@ -62,43 +65,43 @@ func (c *Server) protocolHandshake() error {
 
 // Close performs ordered close of server connection
 func (c *Server) Close() error {
-	return c.close()
+	return c.t.Close()
 }
 
 // Serve performs the server connection handshake
 func (c *Server) Serve(conn *websocket.Conn) error {
-	c.Transport = NewTransport(c.Log, conn)
+	c.t = transport.New(c.Log, conn)
 
-	if err := c.init(); err != nil {
+	if err := c.t.Init(); err != nil {
 		return err
 	}
 
-	err := c.hello()
+	err := c.t.Hello()
 	if err == nil {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.pinState(c.Local.Pin, c.Remote.Pin)
+		err = c.t.PinState(c.Local.Pin, c.Remote.Pin)
 	}
 	if err == nil {
-		c.Remote.Methods, err = c.accessMethods(c.Local.Methods)
+		c.Remote.Methods, err = c.t.AccessMethodsRequest(c.Local.Methods)
 	}
 
 	for err == nil {
 		endless := make(chan time.Time)
 
 		var msg interface{}
-		msg, err = c.readMessage(endless)
+		msg, err = c.t.ReadMessage(endless)
 		if err != nil {
 			break
 		}
 
 		switch typed := msg.(type) {
-		case ConnectionClose:
-			return c.acceptClose()
+		case message.ConnectionClose:
+			return c.t.AcceptClose()
 
-		case Data:
-			c.log().Printf("serv: %+v", msg)
+		case message.Datagram:
+			// c.log().Printf("serv: %+v", msg)
 			if c.Handler == nil {
 				err = errors.New("no handler")
 				break

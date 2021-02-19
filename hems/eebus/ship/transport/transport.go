@@ -1,4 +1,4 @@
-package ship
+package transport
 
 import (
 	"bytes"
@@ -8,10 +8,12 @@ import (
 	"net"
 	"time"
 
+	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/util"
 	"github.com/gorilla/websocket"
 )
 
-const cmiReadWriteTimeout = 10 * time.Second
+const CmiReadWriteTimeout = 10 * time.Second
 
 // ErrTimeout is the timeout error
 var ErrTimeout = errors.New("timeout")
@@ -19,7 +21,7 @@ var ErrTimeout = errors.New("timeout")
 // Transport is the physical transport layer
 type Transport struct {
 	conn   *websocket.Conn
-	logger Logger
+	logger util.Logger
 
 	recv    chan []byte
 	recvErr chan error
@@ -39,8 +41,8 @@ const (
 	pingPeriod = (pongWait * 9) / 10
 )
 
-// NewTransport creates SHIP transport on given websocket connection
-func NewTransport(log Logger, conn *websocket.Conn) *Transport {
+// New creates SHIP transport on given websocket connection
+func New(log util.Logger, conn *websocket.Conn) *Transport {
 	t := &Transport{
 		conn:    conn,
 		logger:  log,
@@ -57,9 +59,9 @@ func NewTransport(log Logger, conn *websocket.Conn) *Transport {
 	return t
 }
 
-func (c *Transport) log() Logger {
+func (c *Transport) log() util.Logger {
 	if c.logger == nil {
-		return &NopLogger{}
+		return &util.NopLogger{}
 	}
 	return c.logger
 }
@@ -101,7 +103,7 @@ func (c *Transport) readPump() {
 	}
 }
 
-func (c *Transport) readBinary(timerC <-chan time.Time) ([]byte, error) {
+func (c *Transport) ReadBinary(timerC <-chan time.Time) ([]byte, error) {
 	select {
 	case <-timerC:
 		return nil, ErrTimeout
@@ -117,7 +119,7 @@ func (c *Transport) readBinary(timerC <-chan time.Time) ([]byte, error) {
 	}
 }
 
-func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
+func (c *Transport) ReadMessage(timerC <-chan time.Time) (interface{}, error) {
 	select {
 	case <-timerC:
 		return nil, ErrTimeout
@@ -133,7 +135,7 @@ func (c *Transport) readMessage(timerC <-chan time.Time) (interface{}, error) {
 			return nil, errors.New("invalid phase")
 		}
 
-		return decodeMessage(b[1:])
+		return message.Decode(b[1:])
 
 	case err := <-c.recvErr:
 		return nil, err
@@ -175,7 +177,7 @@ func (c *Transport) writePump() {
 	}
 }
 
-func (c *Transport) writeBinary(msg []byte) error {
+func (c *Transport) WriteBinary(msg []byte) error {
 	c.send <- msg
 
 	timer := time.NewTimer(10 * time.Second)
@@ -191,7 +193,7 @@ func (c *Transport) writeBinary(msg []byte) error {
 	}
 }
 
-func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
+func (c *Transport) WriteJSON(typ byte, jsonMsg interface{}) error {
 	msg, err := json.Marshal(jsonMsg)
 	if err != nil {
 		return err
@@ -200,92 +202,8 @@ func (c *Transport) writeJSON(typ byte, jsonMsg interface{}) error {
 	// add header
 	b := bytes.NewBuffer([]byte{typ})
 	if _, err = b.Write(msg); err == nil {
-		err = c.writeBinary(b.Bytes())
+		err = c.WriteBinary(b.Bytes())
 	}
 
 	return err
-}
-
-func decodeMessage(b []byte) (interface{}, error) {
-	var sum map[string]json.RawMessage
-
-	// fmt.Println(string(b))
-	if err := json.Unmarshal(b, &sum); err != nil {
-		return nil, err
-	}
-
-	var typ string
-	var raw json.RawMessage
-	for k, v := range sum {
-		typ = k
-		raw = v
-	}
-
-	// fmt.Println(typ, sum)
-
-	switch typ {
-	case "accessMethods":
-		res := []AccessMethods{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return AccessMethods{}, nil
-
-	case "accessMethodsRequest":
-		res := []AccessMethodsRequest{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return AccessMethodsRequest{}, nil
-
-	case "connectionPinState":
-		res := []ConnectionPinState{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return ConnectionPinState{}, nil
-
-	case "connectionPinInput":
-		res := []ConnectionPinInput{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return ConnectionPinInput{}, nil
-
-	case "connectionPinError":
-		res := []ConnectionPinError{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return ConnectionPinError{}, nil
-
-	case "connectionHello":
-		res := []ConnectionHello{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return ConnectionHello{}, nil
-
-	case "connectionClose":
-		res := []ConnectionClose{}
-		err := json.Unmarshal(raw, &res)
-		if len(res) > 0 {
-			return res[0], err
-		}
-		return ConnectionClose{}, nil
-
-	case "messageProtocolHandshake":
-		res := MessageProtocolHandshake{}
-		err := json.Unmarshal(raw, &res)
-		return res, err
-
-	default:
-		return nil, errors.New("invalid type")
-	}
 }
