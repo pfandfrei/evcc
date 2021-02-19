@@ -78,7 +78,7 @@ func (ss *Service) Connect() error {
 	sc := &ship.Client{
 		Log:    log.New(&writer{os.Stdout, "2006/01/02 15:04:05 "}, "[client] ", 0),
 		Local:  ship.Service{Pin: ""},
-		Remote: ship.Service{Pin: "1122"},
+		Remote: ship.Service{Pin: "11221"},
 	}
 
 	ss.Conn = sc

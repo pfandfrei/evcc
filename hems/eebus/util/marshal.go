@@ -11,7 +11,7 @@ import (
 
 // Marshal is the SHIP serialization
 func Marshal(v interface{}) ([]byte, error) {
-	var e []map[string]interface{}
+	e := make([]map[string]interface{}, 0)
 
 	for _, f := range structs.Fields(v) {
 		if !f.IsExported() {

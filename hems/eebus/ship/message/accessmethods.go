@@ -9,11 +9,11 @@ type CmiAccessMethodsRequest struct {
 type AccessMethodsRequest struct{}
 
 type CmiAccessMethods struct {
-	AccessMethods []AccessMethods `json:"accessMethods"`
+	AccessMethods AccessMethods `json:"accessMethods"`
 }
 
 type AccessMethods struct {
-	ID string `json:"id"`
+	ID string `json:"id,omitempty"`
 	// DnsSDmDns string `json:"dnsSd_mDns,omitempty"`
 	// Dns       *struct {
 	// 	URI string `json:"uri"`

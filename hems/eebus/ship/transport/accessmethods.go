@@ -7,8 +7,8 @@ import (
 	"github.com/andig/evcc/hems/eebus/ship/message"
 )
 
-// accessMethodsRequest
-func (c *Transport) AccessMethodsRequest(methods []string) ([]string, error) {
+// AccessMethodsRequest
+func (c *Transport) AccessMethodsRequest(methods string) (string, error) {
 	err := c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethodsRequest{
 		AccessMethodsRequest: []message.AccessMethodsRequest{},
 	})
@@ -23,15 +23,11 @@ func (c *Transport) AccessMethodsRequest(methods []string) ([]string, error) {
 		switch typed := msg.(type) {
 		case message.AccessMethods:
 			// access methods received
-			return []string{typed.ID}, nil
+			return typed.ID, nil
 
 		case message.AccessMethodsRequest:
-			am := make([]message.AccessMethods, 0, len(methods))
-			for _, m := range methods {
-				am = append(am, message.AccessMethods{ID: m})
-			}
 			err = c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethods{
-				AccessMethods: am,
+				// AccessMethods: message.AccessMethods{ID: methods},
 			})
 
 		default:
@@ -39,5 +35,5 @@ func (c *Transport) AccessMethodsRequest(methods []string) ([]string, error) {
 		}
 	}
 
-	return nil, err
+	return "", err
 }

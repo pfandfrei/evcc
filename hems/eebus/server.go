@@ -64,7 +64,7 @@ func (s *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// ship
 	sc := &ship.Server{
 		Log:    log,
-		Local:  ship.Service{Pin: "1122", Methods: []string{s.AccessMethod}},
+		Local:  ship.Service{Pin: "1122", Methods: s.AccessMethod},
 		Remote: ship.Service{Pin: ""},
 	}
 
