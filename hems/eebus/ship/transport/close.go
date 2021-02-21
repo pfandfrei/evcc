@@ -9,11 +9,16 @@ import (
 
 // AcceptClose accepts connection close
 func (c *Transport) AcceptClose() error {
-	return c.WriteJSON(message.CmiTypeEnd, message.CmiCloseMsg{
+	err := c.WriteJSON(message.CmiTypeEnd, message.CmiCloseMsg{
 		ConnectionClose: message.ConnectionClose{
 			Phase: message.CmiClosePhaseConfirm,
 		},
 	})
+
+	// stop read/write pump
+	close(c.closeC)
+
+	return err
 }
 
 // Close closes the connection
@@ -33,11 +38,14 @@ func (c *Transport) Close() error {
 		}
 
 		if typed, ok := msg.(message.ConnectionClose); ok && typed.Phase == message.CmiClosePhaseConfirm {
-			return nil
+			break
 		}
 
 		err = errors.New("close: invalid response")
 	}
+
+	// stop read/write pump
+	close(c.closeC)
 
 	return err
 }

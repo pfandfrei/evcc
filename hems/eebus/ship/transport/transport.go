@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// CmiReadWriteTimeout timeout
 const CmiReadWriteTimeout = 10 * time.Second
 
 // ErrTimeout is the timeout error
