@@ -1,6 +1,6 @@
 package vw
 
-import "github.com/andig/evcc/vehicle/oidc"
+import "github.com/andig/evcc/internal/vehicle/oidc"
 
 // idTokens is the non-OIDC compliant VW ID token structure
 type idTokens struct {

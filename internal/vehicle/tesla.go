@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/andig/evcc/api"
+	auth "github.com/andig/evcc/internal/vehicle/tesla"
 	"github.com/andig/evcc/provider"
 	"github.com/andig/evcc/util"
 	"github.com/andig/evcc/util/request"
-	auth "github.com/andig/evcc/vehicle/tesla"
 	"github.com/bogosj/tesla"
 	"golang.org/x/oauth2"
 )

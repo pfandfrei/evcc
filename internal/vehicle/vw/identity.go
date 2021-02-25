@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/andig/evcc/internal/vehicle/oidc"
 	"github.com/andig/evcc/util"
 	"github.com/andig/evcc/util/request"
-	"github.com/andig/evcc/vehicle/oidc"
 	"golang.org/x/net/publicsuffix"
 )
 

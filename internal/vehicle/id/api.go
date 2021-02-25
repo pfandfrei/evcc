@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/andig/evcc/internal/vehicle/vw"
 	"github.com/andig/evcc/util"
 	"github.com/andig/evcc/util/request"
-	"github.com/andig/evcc/vehicle/vw"
 )
 
 // https://identity-userinfo.vwgroup.io/oidc/userinfo

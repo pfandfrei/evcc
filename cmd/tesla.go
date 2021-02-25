@@ -8,9 +8,9 @@ import (
 	"os"
 	"strings"
 
+	auth "github.com/andig/evcc/internal/vehicle/tesla"
 	"github.com/andig/evcc/server"
 	"github.com/andig/evcc/util"
-	auth "github.com/andig/evcc/vehicle/tesla"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/thoas/go-funk"
