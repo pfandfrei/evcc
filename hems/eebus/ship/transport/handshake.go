@@ -17,10 +17,11 @@ func (c *Transport) HandshakeReceiveSelect() error {
 
 	switch typed := msg.(type) {
 	case message.MessageProtocolHandshake:
-		if typed.HandshakeType != message.ProtocolHandshakeTypeSelect || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
-			_ = c.WriteJSON(message.CmiTypeControl, message.CmiProtocolHandshakeError{
-				Error: message.CmiProtocolHandshakeErrorUnexpectedMessage,
-			})
+		if typed.HandshakeType != string(message.ProtocolHandshakeTypeTypeSelect) || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
+			_ = c.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+					Error: "2", // TODO
+				}})
 
 			err = errors.New("handshake: invalid format")
 		}

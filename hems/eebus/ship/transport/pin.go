@@ -35,13 +35,13 @@ const (
 // PinState handles pin exchange
 func (c *Transport) PinState(local, remote string) error {
 	pinState := message.ConnectionPinState{
-		PinState: message.PinStateNone,
+		PinState: string(message.PinStateTypeNone),
 	}
 
 	var status int
 	if local != "" {
-		pinState.PinState = message.PinStateRequired
-		pinState.InputPermission = message.PinInputPermissionOk
+		pinState.PinState = string(message.PinStateTypeRequired)
+		pinState.InputPermission = string(message.PinInputPermissionTypeOk)
 	} else {
 		// always received if not necessary
 		status |= pinReceived
@@ -65,7 +65,9 @@ func (c *Transport) PinState(local, remote string) error {
 			// signal error to client
 			if typed.Pin != local {
 				err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinError{
-					ConnectionPinError: message.ConnectionPinError{Error: 1},
+					ConnectionPinError: message.ConnectionPinError{
+						Error: "1", // TODO
+					},
 				})
 			}
 
@@ -73,10 +75,12 @@ func (c *Transport) PinState(local, remote string) error {
 
 		// remote pin
 		case message.ConnectionPinState:
-			if typed.PinState == message.PinStateOptional || typed.PinState == message.PinStateRequired {
+			if typed.PinState == string(message.PinStateTypeOptional) || typed.PinState == string(message.PinStateTypeRequired) {
 				if remote != "" {
 					err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinInput{
-						ConnectionPinInput: message.ConnectionPinInput{Pin: remote},
+						ConnectionPinInput: message.ConnectionPinInput{
+							Pin: remote,
+						},
 					})
 				} else {
 					err = errors.New("pin: remote pin required")

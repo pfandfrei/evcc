@@ -10,7 +10,7 @@ import (
 // AccessMethodsRequest sends access methods request and processes answer
 func (c *Transport) AccessMethodsRequest(methods string) (string, error) {
 	err := c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethodsRequest{
-		AccessMethodsRequest: []message.AccessMethodsRequest{},
+		AccessMethodsRequest: message.AccessMethodsRequest{},
 	})
 
 	for err == nil {
@@ -23,11 +23,11 @@ func (c *Transport) AccessMethodsRequest(methods string) (string, error) {
 		switch typed := msg.(type) {
 		case message.AccessMethods:
 			// access methods received
-			return typed.ID, nil
+			return typed.Id, nil
 
 		case message.AccessMethodsRequest:
 			err = c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethods{
-				AccessMethods: message.AccessMethods{ID: methods},
+				AccessMethods: message.AccessMethods{Id: methods},
 			})
 
 		default:

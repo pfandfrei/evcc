@@ -45,9 +45,10 @@ func (c *Server) protocolHandshake() error {
 	msg, err := c.t.ReadMessage(timer.C)
 	if err != nil {
 		if errors.Is(err, transport.ErrTimeout) {
-			_ = c.t.WriteJSON(message.CmiTypeControl, message.CmiProtocolHandshakeError{
-				Error: message.CmiProtocolHandshakeErrorUnexpectedMessage,
-			})
+			_ = c.t.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+					Error: "2", // TODO
+				}})
 		}
 
 		return err
@@ -55,9 +56,11 @@ func (c *Server) protocolHandshake() error {
 
 	switch typed := msg.(type) {
 	case message.MessageProtocolHandshake:
-		if typed.HandshakeType != message.ProtocolHandshakeTypeAnnounceMax || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
-			msg := message.CmiProtocolHandshakeError{
-				Error: message.CmiProtocolHandshakeErrorUnexpectedMessage,
+		if typed.HandshakeType != string(message.ProtocolHandshakeTypeTypeAnnouncemax) || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
+			msg := message.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+					Error: "2", // TODO
+				},
 			}
 
 			_ = c.t.WriteJSON(message.CmiTypeControl, msg)
@@ -66,8 +69,8 @@ func (c *Server) protocolHandshake() error {
 		}
 
 		// send selection to client
-		typed.HandshakeType = message.ProtocolHandshakeTypeSelect
-		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiHandshakeMsg{
+		typed.HandshakeType = string(message.ProtocolHandshakeTypeTypeSelect)
+		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshake{
 			MessageProtocolHandshake: typed,
 		})
 
@@ -122,7 +125,7 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 		case message.ConnectionClose:
 			return c.t.AcceptClose()
 
-		case message.Datagram:
+		case message.Data:
 			// c.log().Printf("serv: %+v", msg)
 			if c.Handler == nil {
 				err = errors.New("no handler")
