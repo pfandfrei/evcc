@@ -61,6 +61,8 @@ func Unmarshal(data []byte, v interface{}) error {
 			val = v
 		}
 
+		// fmt.Println("json:", string(val))
+
 		// find field
 		var field *structs.Field
 		for _, f := range structs.Fields(v) {
@@ -79,43 +81,20 @@ func Unmarshal(data []byte, v interface{}) error {
 			return fmt.Errorf("unmarshal: field not found: %s", key)
 		}
 
-		// iface := field.Value()
-		iface := reflect.New(
-			reflect.TypeOf(field.Value()),
-		).Interface()
-		// iface := field.Value()
-		fmt.Printf("iface 1: %T %s\n", iface, field.Kind())
+		// convert value into pointer to value as interface
+		iface := reflect.New(reflect.TypeOf(field.Value())).Interface()
 
-		// switch field.Kind() {
-		// case reflect.Struct, reflect.Slice:
-		// 	iface = reflect.New(reflect.TypeOf(field.Value())).Interface() // struct to interface
-		// }
-
-		fmt.Println(string(val))
-		fmt.Printf("iface 2: %T %s %s\n", iface, reflect.TypeOf(field.Value()).String(), reflect.TypeOf(field.Value()).Kind())
-		err := json.Unmarshal(val, iface)
-		if err != nil {
-			// panic(err)
+		// use pointer-interface to unmarshal into target type
+		if err := json.Unmarshal(val, iface); err != nil {
 			return err
 		}
 
-		// switch field.Kind() {
-		// case reflect.Int:
-		// 	iface = int(iface.(float64))
+		// de-reference
+		iface = reflect.ValueOf(iface).Elem().Interface()
 
-		// case reflect.Struct, reflect.Slice:
-		// 	elem := reflect.ValueOf(iface).Elem() // de-reference
-		// 	switch elem.Kind() {
-		// 	case reflect.Struct, reflect.Slice:
-		// 		iface = elem.Interface()
-		// 	case reflect.String:
-		// 		iface = elem.String()
-		// 	}
-		// }
-
-		fmt.Printf("set: %s=%+v (%T)\n", field.Name(), iface, iface)
+		// fmt.Printf("set: %s=%+v (%T)\n", field.Name(), iface, iface)
 		if err := field.Set(iface); err != nil {
-			// fmt.Printf("set: %s=%+v %v\n", field.Name(), iface, err)
+			// fmt.Printf("err: %v\n", err)
 			return err
 		}
 	}

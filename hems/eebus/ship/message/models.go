@@ -2,8 +2,6 @@
 package message
 
 import (
-	"fmt"
-
 	"github.com/andig/evcc/hems/eebus/util"
 )
 
@@ -28,9 +26,7 @@ func (m ConnectionHello) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON is the SHIP serialization unmarshaller
 func (m *ConnectionHello) UnmarshalJSON(data []byte) error {
-	err := util.Unmarshal(data, &m)
-	fmt.Printf("%+v %v\n", m, err)
-	return err
+	return util.Unmarshal(data, &m)
 }
 
 // CmiMessageProtocolHandshake message container
