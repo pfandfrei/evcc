@@ -6,14 +6,15 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 // Hello is the common hello exchange
 func (c *Transport) Hello() error {
 	// SME_HELLO_STATE_READY_INIT
-	if err := c.WriteJSON(message.CmiTypeControl, message.CmiConnectionHello{
-		ConnectionHello: message.ConnectionHello{
-			Phase: message.ConnectionHelloPhaseTypeReady,
+	if err := c.WriteJSON(message.CmiTypeControl, ship.CmiConnectionHello{
+		ConnectionHello: ship.ConnectionHello{
+			Phase: ship.ConnectionHelloPhaseTypeReady,
 		},
 	}); err != nil {
 		return fmt.Errorf("hello: %w", err)
@@ -26,9 +27,9 @@ func (c *Transport) Hello() error {
 		if err != nil {
 			if errors.Is(err, ErrTimeout) {
 				// SME_HELLO_STATE_READY_TIMEOUT
-				_ = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionHello{
-					ConnectionHello: message.ConnectionHello{
-						Phase: message.ConnectionHelloPhaseTypeAborted,
+				_ = c.WriteJSON(message.CmiTypeControl, ship.CmiConnectionHello{
+					ConnectionHello: ship.ConnectionHello{
+						Phase: ship.ConnectionHelloPhaseTypeAborted,
 					},
 				})
 			}
@@ -37,22 +38,22 @@ func (c *Transport) Hello() error {
 		}
 
 		switch hello := msg.(type) {
-		case message.ConnectionHello:
+		case ship.ConnectionHello:
 			switch hello.Phase {
-			case message.ConnectionHelloPhaseTypeReady:
+			case ship.ConnectionHelloPhaseTypeReady:
 				// HELLO_OK
 				return nil
 
-			case message.ConnectionHelloPhaseTypeAborted:
+			case ship.ConnectionHelloPhaseTypeAborted:
 				return errors.New("hello: aborted")
 
-			case message.ConnectionHelloPhaseTypePending:
+			case ship.ConnectionHelloPhaseTypePending:
 				if hello.ProlongationRequest != nil && *hello.ProlongationRequest {
 					timer = time.NewTimer(message.CmiHelloProlongationTimeout)
 				}
 			}
 
-		case message.ConnectionClose:
+		case ship.ConnectionClose:
 			err = errors.New("hello: remote closed")
 
 		default:

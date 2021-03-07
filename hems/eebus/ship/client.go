@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 	"github.com/andig/evcc/hems/eebus/ship/transport"
 	"github.com/andig/evcc/hems/eebus/util"
 	"github.com/gorilla/websocket"
@@ -49,12 +50,12 @@ func (c *Client) init() error {
 }
 
 func (c *Client) protocolHandshake() error {
-	hs := message.CmiMessageProtocolHandshake{
-		MessageProtocolHandshake: message.MessageProtocolHandshake{
-			HandshakeType: message.ProtocolHandshakeTypeTypeAnnouncemax,
-			Version:       message.Version{Major: 1, Minor: 0},
-			Formats: message.MessageProtocolFormatsType{
-				Format: []message.MessageProtocolFormatType{message.ProtocolHandshakeFormatJSON},
+	hs := ship.CmiMessageProtocolHandshake{
+		MessageProtocolHandshake: ship.MessageProtocolHandshake{
+			HandshakeType: ship.ProtocolHandshakeTypeTypeAnnouncemax,
+			Version:       ship.Version{Major: 1, Minor: 0},
+			Formats: ship.MessageProtocolFormatsType{
+				Format: []ship.MessageProtocolFormatType{ship.ProtocolHandshakeFormatJSON},
 			},
 		},
 	}
@@ -65,7 +66,7 @@ func (c *Client) protocolHandshake() error {
 	// receive server selection and send selection back to server
 	err := c.t.HandshakeReceiveSelect()
 	if err == nil {
-		hs.MessageProtocolHandshake.HandshakeType = message.ProtocolHandshakeTypeTypeSelect
+		hs.MessageProtocolHandshake.HandshakeType = ship.ProtocolHandshakeTypeTypeSelect
 		err = c.t.WriteJSON(message.CmiTypeControl, hs)
 	}
 
@@ -103,8 +104,8 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 	}
 	if err == nil {
 		err = c.t.PinState(
-			message.PinValueType(c.Local.Pin),
-			message.PinValueType(c.Remote.Pin),
+			ship.PinValueType(c.Local.Pin),
+			ship.PinValueType(c.Remote.Pin),
 		)
 	}
 	if err == nil {

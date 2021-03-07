@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 // HandshakeReceiveSelect receives handshake
@@ -16,10 +17,10 @@ func (c *Transport) HandshakeReceiveSelect() error {
 	}
 
 	switch typed := msg.(type) {
-	case message.MessageProtocolHandshake:
-		if typed.HandshakeType != message.ProtocolHandshakeTypeTypeSelect || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
-			_ = c.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshakeError{
-				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+	case ship.MessageProtocolHandshake:
+		if typed.HandshakeType != ship.ProtocolHandshakeTypeTypeSelect || !typed.Formats.IsSupported(ship.ProtocolHandshakeFormatJSON) {
+			_ = c.WriteJSON(message.CmiTypeControl, ship.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: ship.MessageProtocolHandshakeError{
 					Error: "2", // TODO
 				}})
 
@@ -28,7 +29,7 @@ func (c *Transport) HandshakeReceiveSelect() error {
 
 		return nil
 
-	case message.ConnectionClose:
+	case ship.ConnectionClose:
 		err = errors.New("handshake: remote closed")
 
 	default:

@@ -5,15 +5,16 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 // read pin requirements
-func (c *Transport) readPinState() (message.ConnectionPinState, error) {
+func (c *Transport) readPinState() (ship.ConnectionPinState, error) {
 	timer := time.NewTimer(CmiReadWriteTimeout)
 	msg, err := c.ReadMessage(timer.C)
 
 	switch typed := msg.(type) {
-	case message.ConnectionPinState:
+	case ship.ConnectionPinState:
 		return typed, err
 
 	default:
@@ -21,7 +22,7 @@ func (c *Transport) readPinState() (message.ConnectionPinState, error) {
 			err = errors.New("pin: invalid type")
 		}
 
-		return message.ConnectionPinState{}, err
+		return ship.ConnectionPinState{}, err
 	}
 }
 
@@ -33,22 +34,22 @@ const (
 )
 
 // PinState handles pin exchange
-func (c *Transport) PinState(local, remote message.PinValueType) error {
-	pinState := message.ConnectionPinState{
-		PinState: message.PinStateTypeNone,
+func (c *Transport) PinState(local, remote ship.PinValueType) error {
+	pinState := ship.ConnectionPinState{
+		PinState: ship.PinStateTypeNone,
 	}
 
 	var status int
 	if local != "" {
-		ok := message.PinInputPermissionTypeOk
-		pinState.PinState = message.PinStateTypeRequired
+		ok := ship.PinInputPermissionTypeOk
+		pinState.PinState = ship.PinStateTypeRequired
 		pinState.InputPermission = &ok
 	} else {
 		// always received if not necessary
 		status |= pinReceived
 	}
 
-	err := c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinState{
+	err := c.WriteJSON(message.CmiTypeControl, ship.CmiConnectionPinState{
 		ConnectionPinState: pinState,
 	})
 
@@ -62,11 +63,11 @@ func (c *Transport) PinState(local, remote message.PinValueType) error {
 
 		switch typed := msg.(type) {
 		// local pin
-		case message.ConnectionPinInput:
+		case ship.ConnectionPinInput:
 			// signal error to client
 			if typed.Pin != local {
-				err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinError{
-					ConnectionPinError: message.ConnectionPinError{
+				err = c.WriteJSON(message.CmiTypeControl, ship.CmiConnectionPinError{
+					ConnectionPinError: ship.ConnectionPinError{
 						Error: "1", // TODO
 					},
 				})
@@ -75,11 +76,11 @@ func (c *Transport) PinState(local, remote message.PinValueType) error {
 			status |= pinReceived
 
 		// remote pin
-		case message.ConnectionPinState:
-			if typed.PinState == message.PinStateTypeOptional || typed.PinState == message.PinStateTypeRequired {
+		case ship.ConnectionPinState:
+			if typed.PinState == ship.PinStateTypeOptional || typed.PinState == ship.PinStateTypeRequired {
 				if remote != "" {
-					err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinInput{
-						ConnectionPinInput: message.ConnectionPinInput{
+					err = c.WriteJSON(message.CmiTypeControl, ship.CmiConnectionPinInput{
+						ConnectionPinInput: ship.ConnectionPinInput{
 							Pin: remote,
 						},
 					})
@@ -90,10 +91,10 @@ func (c *Transport) PinState(local, remote message.PinValueType) error {
 
 			status |= pinSent
 
-		case message.ConnectionPinError:
+		case ship.ConnectionPinError:
 			err = errors.New("pin: remote pin mismatched")
 
-		case message.ConnectionClose:
+		case ship.ConnectionClose:
 			err = errors.New("pin: remote closed")
 
 		default:

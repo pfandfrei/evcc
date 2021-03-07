@@ -5,12 +5,13 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 // AccessMethodsRequest sends access methods request and processes answer
 func (c *Transport) AccessMethodsRequest(methods string) (string, error) {
-	err := c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethodsRequest{
-		AccessMethodsRequest: message.AccessMethodsRequest{},
+	err := c.WriteJSON(message.CmiTypeControl, ship.CmiAccessMethodsRequest{
+		AccessMethodsRequest: ship.AccessMethodsRequest{},
 	})
 
 	for err == nil {
@@ -21,13 +22,13 @@ func (c *Transport) AccessMethodsRequest(methods string) (string, error) {
 		}
 
 		switch typed := msg.(type) {
-		case message.AccessMethods:
+		case ship.AccessMethods:
 			// access methods received
 			return typed.Id, nil
 
-		case message.AccessMethodsRequest:
-			err = c.WriteJSON(message.CmiTypeControl, message.CmiAccessMethods{
-				AccessMethods: message.AccessMethods{Id: methods},
+		case ship.AccessMethodsRequest:
+			err = c.WriteJSON(message.CmiTypeControl, ship.CmiAccessMethods{
+				AccessMethods: ship.AccessMethods{Id: methods},
 			})
 
 		default:

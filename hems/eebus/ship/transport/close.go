@@ -5,13 +5,14 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 // AcceptClose accepts connection close
 func (c *Transport) AcceptClose() error {
-	err := c.WriteJSON(message.CmiTypeEnd, message.CmiConnectionClose{
-		ConnectionClose: message.ConnectionClose{
-			Phase: message.ConnectionClosePhaseTypeConfirm,
+	err := c.WriteJSON(message.CmiTypeEnd, ship.CmiConnectionClose{
+		ConnectionClose: ship.ConnectionClose{
+			Phase: ship.ConnectionClosePhaseTypeConfirm,
 		},
 	})
 
@@ -23,10 +24,10 @@ func (c *Transport) AcceptClose() error {
 
 // Close closes the connection
 func (c *Transport) Close() error {
-	err := c.WriteJSON(message.CmiTypeEnd, message.CmiConnectionClose{
-		ConnectionClose: message.ConnectionClose{
-			Phase: message.ConnectionClosePhaseTypeAnnounce,
-			// MaxTime: int(message.CmiCloseTimeout / time.Millisecond),
+	err := c.WriteJSON(message.CmiTypeEnd, ship.CmiConnectionClose{
+		ConnectionClose: ship.ConnectionClose{
+			Phase: ship.ConnectionClosePhaseTypeAnnounce,
+			// MaxTime: int(ship.CmiCloseTimeout / time.Millisecond),
 		},
 	})
 
@@ -37,7 +38,7 @@ func (c *Transport) Close() error {
 			break
 		}
 
-		if typed, ok := msg.(message.ConnectionClose); ok && typed.Phase == message.ConnectionClosePhaseTypeConfirm {
+		if typed, ok := msg.(ship.ConnectionClose); ok && typed.Phase == ship.ConnectionClosePhaseTypeConfirm {
 			break
 		}
 

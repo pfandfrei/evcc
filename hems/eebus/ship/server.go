@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/andig/evcc/hems/eebus/ship/message"
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 	"github.com/andig/evcc/hems/eebus/ship/transport"
 	"github.com/andig/evcc/hems/eebus/util"
 	"github.com/gorilla/websocket"
@@ -45,8 +46,8 @@ func (c *Server) protocolHandshake() error {
 	msg, err := c.t.ReadMessage(timer.C)
 	if err != nil {
 		if errors.Is(err, transport.ErrTimeout) {
-			_ = c.t.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshakeError{
-				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+			_ = c.t.WriteJSON(message.CmiTypeControl, ship.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: ship.MessageProtocolHandshakeError{
 					Error: "2", // TODO
 				}})
 		}
@@ -55,10 +56,10 @@ func (c *Server) protocolHandshake() error {
 	}
 
 	switch typed := msg.(type) {
-	case message.MessageProtocolHandshake:
-		if typed.HandshakeType != message.ProtocolHandshakeTypeTypeAnnouncemax || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
-			msg := message.CmiMessageProtocolHandshakeError{
-				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
+	case ship.MessageProtocolHandshake:
+		if typed.HandshakeType != ship.ProtocolHandshakeTypeTypeAnnouncemax || !typed.Formats.IsSupported(ship.ProtocolHandshakeFormatJSON) {
+			msg := ship.CmiMessageProtocolHandshakeError{
+				MessageProtocolHandshakeError: ship.MessageProtocolHandshakeError{
 					Error: "2", // TODO
 				},
 			}
@@ -69,8 +70,8 @@ func (c *Server) protocolHandshake() error {
 		}
 
 		// send selection to client
-		typed.HandshakeType = message.ProtocolHandshakeTypeTypeSelect
-		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshake{
+		typed.HandshakeType = ship.ProtocolHandshakeTypeTypeSelect
+		err = c.t.WriteJSON(message.CmiTypeControl, ship.CmiMessageProtocolHandshake{
 			MessageProtocolHandshake: typed,
 		})
 
@@ -107,8 +108,8 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 	}
 	if err == nil {
 		err = c.t.PinState(
-			message.PinValueType(c.Local.Pin),
-			message.PinValueType(c.Remote.Pin),
+			ship.PinValueType(c.Local.Pin),
+			ship.PinValueType(c.Remote.Pin),
 		)
 	}
 	if err == nil {
@@ -125,10 +126,10 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 		}
 
 		switch typed := msg.(type) {
-		case message.ConnectionClose:
+		case ship.ConnectionClose:
 			return c.t.AcceptClose()
 
-		case message.Data:
+		case ship.Data:
 			// c.log().Printf("serv: %+v", msg)
 			if c.Handler == nil {
 				err = errors.New("no handler")

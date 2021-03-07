@@ -1,5 +1,5 @@
 // Package ship contains models for http://docs.eebus.org/ship/xsd/v1
-package message
+package ship
 
 import (
 	"github.com/andig/evcc/hems/eebus/util"

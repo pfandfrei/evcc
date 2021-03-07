@@ -3,6 +3,8 @@ package message
 import (
 	"encoding/json"
 	"errors"
+
+	"github.com/andig/evcc/hems/eebus/ship/ship"
 )
 
 func Decode(b []byte) (interface{}, error) {
@@ -21,63 +23,63 @@ func Decode(b []byte) (interface{}, error) {
 
 	switch typ {
 	case "accessMethods":
-		res := []AccessMethods{}
+		res := []ship.AccessMethods{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return AccessMethods{}, nil
+		return ship.AccessMethods{}, nil
 
 	case "accessMethodsRequest":
-		res := []AccessMethodsRequest{}
+		res := []ship.AccessMethodsRequest{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return AccessMethodsRequest{}, nil
+		return ship.AccessMethodsRequest{}, nil
 
 	case "connectionPinState":
-		res := []ConnectionPinState{}
+		res := []ship.ConnectionPinState{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return ConnectionPinState{}, nil
+		return ship.ConnectionPinState{}, nil
 
 	case "connectionPinInput":
-		res := []ConnectionPinInput{}
+		res := []ship.ConnectionPinInput{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return ConnectionPinInput{}, nil
+		return ship.ConnectionPinInput{}, nil
 
 	case "connectionPinError":
-		res := []ConnectionPinError{}
+		res := []ship.ConnectionPinError{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return ConnectionPinError{}, nil
+		return ship.ConnectionPinError{}, nil
 
 	case "connectionHello":
-		res := []ConnectionHello{}
+		res := []ship.ConnectionHello{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return ConnectionHello{}, nil
+		return ship.ConnectionHello{}, nil
 
 	case "connectionClose":
-		res := []ConnectionClose{}
+		res := []ship.ConnectionClose{}
 		err := json.Unmarshal(raw, &res)
 		if len(res) > 0 {
 			return res[0], err
 		}
-		return ConnectionClose{}, nil
+		return ship.ConnectionClose{}, nil
 
 	case "messageProtocolHandshake":
-		res := MessageProtocolHandshake{}
+		res := ship.MessageProtocolHandshake{}
 		err := json.Unmarshal(raw, &res)
 		return res, err
 
