@@ -168,6 +168,10 @@ func (c *Transport) writePump() {
 				return
 			}
 
+			if len(msg) > 2 {
+				c.log().Println("send:", string(msg))
+			}
+
 			err := c.conn.WriteMessage(websocket.BinaryMessage, msg)
 			c.sendErr <- err
 
