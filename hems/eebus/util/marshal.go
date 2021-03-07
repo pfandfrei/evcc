@@ -37,30 +37,26 @@ func Marshal(v interface{}) ([]byte, error) {
 
 // Unmarshal is the SHIP de-serialization
 func Unmarshal(data []byte, v interface{}) error {
-	var e []map[string]json.RawMessage
+	var ar []map[string]json.RawMessage
 
-	if data[0] == byte('[') {
-		// fmt.Printf("unmarshal: slice %s\n", string(data))
-		if err := json.Unmarshal(data, &e); err != nil {
-			return err
-		}
-	} else {
-		// fmt.Printf("unmarshal: map %s\n", string(data))
-		e = append(e, map[string]json.RawMessage{})
-		if err := json.Unmarshal(data, &e[0]); err != nil {
-			return err
-		}
+	// convert input to json array
+	if data[0] != byte('[') {
+		data = append([]byte{'['}, append(data, ']')...)
+	}
+	if err := json.Unmarshal(data, &ar); err != nil {
+		return err
 	}
 
-	for _, m := range e {
-		if len(m) > 1 {
-			return fmt.Errorf("unmarshal: invalid map %v", m)
+	// convert array elements to struct members
+	for _, ae := range ar {
+		if len(ae) > 1 {
+			return fmt.Errorf("unmarshal: invalid map %v", ae)
 		}
 
-		// extract map
+		// extract 1-element map
 		var key string
 		var val json.RawMessage
-		for k, v := range m {
+		for k, v := range ae {
 			key = k
 			val = v
 		}
@@ -83,31 +79,41 @@ func Unmarshal(data []byte, v interface{}) error {
 			return fmt.Errorf("unmarshal: field not found: %s", key)
 		}
 
-		iface := field.Value()
-		switch field.Kind() {
-		case reflect.Struct, reflect.Slice:
-			iface = reflect.New(reflect.TypeOf(field.Value())).Interface() // struct to interface
-		}
+		// iface := field.Value()
+		iface := reflect.New(
+			reflect.TypeOf(field.Value()),
+		).Interface()
+		// iface := field.Value()
+		fmt.Printf("iface 1: %T %s\n", iface, field.Kind())
 
-		// fmt.Printf("iface: %T %s\n", iface, reflect.TypeOf(field.Value()).Kind())
-		if err := json.Unmarshal(val, &iface); err != nil {
+		// switch field.Kind() {
+		// case reflect.Struct, reflect.Slice:
+		// 	iface = reflect.New(reflect.TypeOf(field.Value())).Interface() // struct to interface
+		// }
+
+		fmt.Println(string(val))
+		fmt.Printf("iface 2: %T %s %s\n", iface, reflect.TypeOf(field.Value()).String(), reflect.TypeOf(field.Value()).Kind())
+		err := json.Unmarshal(val, iface)
+		if err != nil {
+			// panic(err)
 			return err
 		}
 
-		switch field.Kind() {
-		case reflect.Int:
-			iface = int(iface.(float64))
+		// switch field.Kind() {
+		// case reflect.Int:
+		// 	iface = int(iface.(float64))
 
-		case reflect.Struct, reflect.Slice:
-			elem := reflect.ValueOf(iface).Elem() // de-reference
-			switch elem.Kind() {
-			case reflect.Struct, reflect.Slice:
-				iface = elem.Interface()
-			case reflect.String:
-				iface = elem.String()
-			}
-		}
+		// case reflect.Struct, reflect.Slice:
+		// 	elem := reflect.ValueOf(iface).Elem() // de-reference
+		// 	switch elem.Kind() {
+		// 	case reflect.Struct, reflect.Slice:
+		// 		iface = elem.Interface()
+		// 	case reflect.String:
+		// 		iface = elem.String()
+		// 	}
+		// }
 
+		fmt.Printf("set: %s=%+v (%T)\n", field.Name(), iface, iface)
 		if err := field.Set(iface); err != nil {
 			// fmt.Printf("set: %s=%+v %v\n", field.Name(), iface, err)
 			return err

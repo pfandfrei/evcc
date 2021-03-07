@@ -11,7 +11,7 @@ import (
 func (c *Transport) AcceptClose() error {
 	err := c.WriteJSON(message.CmiTypeEnd, message.CmiConnectionClose{
 		ConnectionClose: message.ConnectionClose{
-			Phase: string(message.ConnectionClosePhaseTypeConfirm),
+			Phase: message.ConnectionClosePhaseTypeConfirm,
 		},
 	})
 
@@ -25,7 +25,7 @@ func (c *Transport) AcceptClose() error {
 func (c *Transport) Close() error {
 	err := c.WriteJSON(message.CmiTypeEnd, message.CmiConnectionClose{
 		ConnectionClose: message.ConnectionClose{
-			Phase: string(message.ConnectionClosePhaseTypeAnnounce),
+			Phase: message.ConnectionClosePhaseTypeAnnounce,
 			// MaxTime: int(message.CmiCloseTimeout / time.Millisecond),
 		},
 	})
@@ -37,7 +37,7 @@ func (c *Transport) Close() error {
 			break
 		}
 
-		if typed, ok := msg.(message.ConnectionClose); ok && typed.Phase == string(message.ConnectionClosePhaseTypeConfirm) {
+		if typed, ok := msg.(message.ConnectionClose); ok && typed.Phase == message.ConnectionClosePhaseTypeConfirm {
 			break
 		}
 

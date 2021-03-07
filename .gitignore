@@ -9,3 +9,4 @@ linux-*.Dockerfile
 !modules/**
 dist
 *.py
+release

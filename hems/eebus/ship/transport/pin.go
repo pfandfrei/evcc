@@ -33,15 +33,16 @@ const (
 )
 
 // PinState handles pin exchange
-func (c *Transport) PinState(local, remote string) error {
+func (c *Transport) PinState(local, remote message.PinValueType) error {
 	pinState := message.ConnectionPinState{
-		PinState: string(message.PinStateTypeNone),
+		PinState: message.PinStateTypeNone,
 	}
 
 	var status int
 	if local != "" {
-		pinState.PinState = string(message.PinStateTypeRequired)
-		pinState.InputPermission = string(message.PinInputPermissionTypeOk)
+		ok := message.PinInputPermissionTypeOk
+		pinState.PinState = message.PinStateTypeRequired
+		pinState.InputPermission = &ok
 	} else {
 		// always received if not necessary
 		status |= pinReceived
@@ -75,7 +76,7 @@ func (c *Transport) PinState(local, remote string) error {
 
 		// remote pin
 		case message.ConnectionPinState:
-			if typed.PinState == string(message.PinStateTypeOptional) || typed.PinState == string(message.PinStateTypeRequired) {
+			if typed.PinState == message.PinStateTypeOptional || typed.PinState == message.PinStateTypeRequired {
 				if remote != "" {
 					err = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionPinInput{
 						ConnectionPinInput: message.ConnectionPinInput{

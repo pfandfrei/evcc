@@ -56,7 +56,7 @@ func (c *Server) protocolHandshake() error {
 
 	switch typed := msg.(type) {
 	case message.MessageProtocolHandshake:
-		if typed.HandshakeType != string(message.ProtocolHandshakeTypeTypeAnnouncemax) || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
+		if typed.HandshakeType != message.ProtocolHandshakeTypeTypeAnnouncemax || !typed.Formats.IsSupported(message.ProtocolHandshakeFormatJSON) {
 			msg := message.CmiMessageProtocolHandshakeError{
 				MessageProtocolHandshakeError: message.MessageProtocolHandshakeError{
 					Error: "2", // TODO
@@ -69,7 +69,7 @@ func (c *Server) protocolHandshake() error {
 		}
 
 		// send selection to client
-		typed.HandshakeType = string(message.ProtocolHandshakeTypeTypeSelect)
+		typed.HandshakeType = message.ProtocolHandshakeTypeTypeSelect
 		err = c.t.WriteJSON(message.CmiTypeControl, message.CmiMessageProtocolHandshake{
 			MessageProtocolHandshake: typed,
 		})
@@ -106,7 +106,10 @@ func (c *Server) Serve(conn *websocket.Conn) error {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.t.PinState(c.Local.Pin, c.Remote.Pin)
+		err = c.t.PinState(
+			message.PinValueType(c.Local.Pin),
+			message.PinValueType(c.Remote.Pin),
+		)
 	}
 	if err == nil {
 		c.Remote.Methods, err = c.t.AccessMethodsRequest(c.Local.Methods)

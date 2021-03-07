@@ -13,7 +13,7 @@ func (c *Transport) Hello() error {
 	// SME_HELLO_STATE_READY_INIT
 	if err := c.WriteJSON(message.CmiTypeControl, message.CmiConnectionHello{
 		ConnectionHello: message.ConnectionHello{
-			Phase: string(message.ConnectionHelloPhaseTypeReady),
+			Phase: message.ConnectionHelloPhaseTypeReady,
 		},
 	}); err != nil {
 		return fmt.Errorf("hello: %w", err)
@@ -28,7 +28,7 @@ func (c *Transport) Hello() error {
 				// SME_HELLO_STATE_READY_TIMEOUT
 				_ = c.WriteJSON(message.CmiTypeControl, message.CmiConnectionHello{
 					ConnectionHello: message.ConnectionHello{
-						Phase: string(message.ConnectionHelloPhaseTypeAborted),
+						Phase: message.ConnectionHelloPhaseTypeAborted,
 					},
 				})
 			}
@@ -39,14 +39,14 @@ func (c *Transport) Hello() error {
 		switch hello := msg.(type) {
 		case message.ConnectionHello:
 			switch hello.Phase {
-			case string(message.ConnectionHelloPhaseTypeReady):
+			case message.ConnectionHelloPhaseTypeReady:
 				// HELLO_OK
 				return nil
 
-			case string(message.ConnectionHelloPhaseTypeAborted):
+			case message.ConnectionHelloPhaseTypeAborted:
 				return errors.New("hello: aborted")
 
-			case string(message.ConnectionHelloPhaseTypePending):
+			case message.ConnectionHelloPhaseTypePending:
 				if hello.ProlongationRequest != nil && *hello.ProlongationRequest {
 					timer = time.NewTimer(message.CmiHelloProlongationTimeout)
 				}

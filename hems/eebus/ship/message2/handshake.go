@@ -11,9 +11,6 @@ const (
 
 	ProtocolHandshakeFormatJSON = "JSON-UTF8"
 
-	ProtocolHandshakeTypeAnnounceMax = "announceMax"
-	ProtocolHandshakeTypeSelect      = "select"
-
 	CmiProtocolHandshakeErrorUnexpectedMessage = 2
 
 	// Pin states

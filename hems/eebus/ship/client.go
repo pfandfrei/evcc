@@ -49,11 +49,13 @@ func (c *Client) init() error {
 }
 
 func (c *Client) protocolHandshake() error {
-	hs := message.CmiHandshakeMsg{
+	hs := message.CmiMessageProtocolHandshake{
 		MessageProtocolHandshake: message.MessageProtocolHandshake{
-			HandshakeType: message.ProtocolHandshakeTypeAnnounceMax,
+			HandshakeType: message.ProtocolHandshakeTypeTypeAnnouncemax,
 			Version:       message.Version{Major: 1, Minor: 0},
-			Formats:       message.Format{Format: []string{message.ProtocolHandshakeFormatJSON}},
+			Formats: message.MessageProtocolFormatsType{
+				Format: []message.MessageProtocolFormatType{message.ProtocolHandshakeFormatJSON},
+			},
 		},
 	}
 	if err := c.t.WriteJSON(message.CmiTypeControl, hs); err != nil {
@@ -63,7 +65,7 @@ func (c *Client) protocolHandshake() error {
 	// receive server selection and send selection back to server
 	err := c.t.HandshakeReceiveSelect()
 	if err == nil {
-		hs.MessageProtocolHandshake.HandshakeType = message.ProtocolHandshakeTypeSelect
+		hs.MessageProtocolHandshake.HandshakeType = message.ProtocolHandshakeTypeTypeSelect
 		err = c.t.WriteJSON(message.CmiTypeControl, hs)
 	}
 
@@ -100,7 +102,10 @@ func (c *Client) Connect(conn *websocket.Conn) error {
 		err = c.protocolHandshake()
 	}
 	if err == nil {
-		err = c.t.PinState(c.Local.Pin, c.Remote.Pin)
+		err = c.t.PinState(
+			message.PinValueType(c.Local.Pin),
+			message.PinValueType(c.Remote.Pin),
+		)
 	}
 	if err == nil {
 		c.Remote.Methods, err = c.t.AccessMethodsRequest(c.Local.Methods)
