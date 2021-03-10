@@ -6,8 +6,10 @@ import (
 	"github.com/andig/evcc/api"
 	"github.com/andig/evcc/provider"
 	"github.com/andig/evcc/util"
-	"github.com/andig/evcc/util/registry"
+	reg "github.com/andig/evcc/util/registry"
 )
+
+var registry = reg.New[api.Charger]()
 
 // Charger is an api.Charger implementation with configurable getters and setters.
 type Charger struct {
@@ -17,10 +19,7 @@ type Charger struct {
 	maxCurrentS func(int64) error
 }
 
-var registry registry.Registry[api.Charger]
-
 func init() {
-	registry=registry.New()
 	registry.Add("default", NewConfigurableFromConfig)
 }
 

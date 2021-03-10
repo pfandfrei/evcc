@@ -7,11 +7,8 @@ import (
 
 type Registry[T any] map[string]func(map[string]interface{}) (T, error)
 
-// var registry [T]Registry = make(map[string]func(map[string]interface{}) (T, error))
-
 func New[T any]() Registry[T] {
-	reg := make(map[string]func(map[string]interface{}) (T, error))
-	return reg
+	return make(map[string]func(map[string]interface{}) (T, error))
 }
 
 func (r Registry[T]) Add(name string, factory func(map[string]interface{}) (T, error)) {
@@ -28,7 +25,6 @@ func (r Registry[T]) Get(name string) (func(map[string]interface{}) (T, error), 
 	}
 	return factory, nil
 }
-
 
 // NewFromConfig creates charger from configuration
 func (r Registry[T]) NewFromConfig(typ string, other map[string]interface{}) (v T, err error) {

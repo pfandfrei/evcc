@@ -7,7 +7,10 @@ import (
 	"github.com/andig/evcc/api"
 	"github.com/andig/evcc/provider"
 	"github.com/andig/evcc/util"
+	reg "github.com/andig/evcc/util/registry"
 )
+
+var registry = reg.New[api.Meter]()
 
 func init() {
 	registry.Add("default", NewConfigurableFromConfig)

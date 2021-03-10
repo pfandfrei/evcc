@@ -7,7 +7,12 @@ import (
 	"github.com/andig/evcc/api"
 	"github.com/andig/evcc/provider"
 	"github.com/andig/evcc/util"
+	reg "github.com/andig/evcc/util/registry"
 )
+
+const interval = 15 * time.Minute
+
+var registry = reg.New[api.Vehicle]()
 
 type embed struct {
 	title    string
