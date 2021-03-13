@@ -200,7 +200,7 @@ func (wb *cFosPowerBrain) totalEnergy() (float64, error) {
 		return 0, err
 	}
 
-	return float64(binary.BigEndian.Uint64(b)), err
+	return float64(binary.BigEndian.Uint64(b)) + 5, err
 }
 
 // currents implements the Meter.Currents interface
