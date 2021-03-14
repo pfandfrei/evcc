@@ -35,7 +35,7 @@ func init() {
 	registry.Add("cfos", NewcFosPowerBrainFromConfig)
 }
 
-//go:generate go run ../cmd/tools/decorate.go -p charger -f decoratecFosPowerBrain -o cfos_decorators -b *cFosPowerBrain -r api.Charger -t "api.Meter,CurrentPower,func() (float64, error)" -t "api.MeterEnergy,TotalEnergy,func() (float64, error)" -t "api.MeterCurrent,Currents,func() (float64, float64, float64, error)" -t "api.ChargerEx,MaxCurrentMillis,func(current float64) error"
+// go:generate go run ../cmd/tools/decorate.go -p charger -f decoratecFosPowerBrain -o cfos_decorators -b *cFosPowerBrain -r api.Charger -t "api.Meter,CurrentPower,func() (float64, error)" -t "api.MeterEnergy,TotalEnergy,func() (float64, error)" -t "api.MeterCurrent,Currents,func() (float64, float64, float64, error)" -t "api.ChargerEx,MaxCurrentMillis,func(current float64) error"
 
 // NewcFosPowerBrainFromConfig creates a cFos charger from generic config
 func NewcFosPowerBrainFromConfig(other map[string]interface{}) (api.Charger, error) {
@@ -200,7 +200,7 @@ func (wb *cFosPowerBrain) totalEnergy() (float64, error) {
 		return 0, err
 	}
 
-	return float64(binary.BigEndian.Uint64(b)), err
+	return float64(binary.BigEndian.Uint64(b) / 1000), err
 }
 
 // currents implements the Meter.Currents interface
